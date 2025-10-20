@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %}
+    <body class="container py-5" style="max-width: 520px">
+        <div class="text-center mb-4">
+            <img
+                src="/static/logo.svg"
+                alt="Bestbefors logo"
+                width="96"
+                height="96"
+                class="mb-3"
+            />
+            <h1 class="h3">Welcome back</h1>
+            <p class="text-muted mb-0">
+                Sign in to manage your inventories and scheduled checks.
+            </p>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form id="login-form" class="mb-3">
+                    <div class="mb-3">
+                        <label class="form-label" for="login-email">Email</label>
+                        <input
+                            id="login-email"
+                            type="email"
+                            class="form-control"
+                            placeholder="you@example.com"
+                            required
+                        />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="login-password">Password</label>
+                        <input
+                            id="login-password"
+                            type="password"
+                            class="form-control"
+                            placeholder="••••••••"
+                            required
+                        />
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit">Log In</button>
+                </form>
+                <div id="login-alert" class="alert d-none" role="alert"></div>
+                <p class="text-center mb-0">
+                    Need an account?
+                    <a href="/auth/register">Register here</a>
+                </p>
+            </div>
+        </div>
+
+        <script>
+            const loginForm = document.getElementById("login-form");
+            const loginAlert = document.getElementById("login-alert");
+
+            function showMessage(message, success = false) {
+                loginAlert.textContent = message;
+                loginAlert.classList.remove("d-none", "alert-danger", "alert-success");
+                loginAlert.classList.add(success ? "alert-success" : "alert-danger");
+            }
+
+            loginForm.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const payload = {
+                    email: document.getElementById("login-email").value.trim(),
+                    password: document.getElementById("login-password").value,
+                };
+
+                try {
+                    const response = await fetch("/api/auth/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (!response.ok) {
+                        const text = await response.text();
+                        showMessage(text || "Invalid credentials.");
+                        return;
+                    }
+
+                    const data = await response.json();
+                    localStorage.setItem("auth_token", data.token);
+                    showMessage("Login successful! Redirecting…", true);
+                    setTimeout(() => {
+                        window.location.href = "/";
+                    }, 800);
+                } catch (error) {
+                    console.error(error);
+                    showMessage("Network error while logging in.");
+                }
+            });
+        </script>
+    </body>
+</html>

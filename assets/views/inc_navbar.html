@@ -1,0 +1,65 @@
+<nav class="navbar bg-body-tertiary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <img src="/static/logo.svg" width="64" alt="bestbefoRS" />
+        </a>
+
+        <ul class="nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+                <a class="nav-link active" aria-current="page" href="/">
+                    Home
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/inventory/list">Inventory</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/manage">Manage</a>
+            </li>
+        </ul>
+
+        <div class="d-flex align-items-center gap-3">
+            <a class="nav-item">
+                <img src="/static/flags/gb.svg" width="32" />
+            </a>
+            <div class="d-flex align-items-center gap-2">
+                <a
+                    id="navbar-login"
+                    class="btn btn-outline-primary btn-sm"
+                    href="/auth/login"
+                >
+                    Log in
+                </a>
+                <a
+                    id="navbar-logout"
+                    class="btn btn-outline-secondary btn-sm d-none"
+                    href="/auth/logout"
+                >
+                    Log out
+                </a>
+            </div>
+        </div>
+    </div>
+</nav>
+<script>
+    (function () {
+        const loginLink = document.getElementById("navbar-login");
+        const logoutLink = document.getElementById("navbar-logout");
+        if (!loginLink || !logoutLink) {
+            return;
+        }
+
+        function syncAuthLinks() {
+            const hasToken = Boolean(localStorage.getItem("auth_token"));
+            loginLink.classList.toggle("d-none", hasToken);
+            logoutLink.classList.toggle("d-none", !hasToken);
+        }
+
+        syncAuthLinks();
+        window.addEventListener("storage", (event) => {
+            if (event.key === "auth_token") {
+                syncAuthLinks();
+            }
+        });
+    })();
+</script>

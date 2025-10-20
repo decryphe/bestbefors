@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %} {% include "inc_navbar.html" %}
+    <body class="container">
+        <h1>List of Expiry Presets</h1>
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Created At</th>
+                                        <th>Updated At</th>
+                                        <th>Code</th>
+                                        <th>Modifier</th>
+                                        <th>Count</th>
+                                        <th>Translated</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for expiry in expiries %}
+                                    <tr>
+                                        <td>{{ expiry.id }}</td>
+                                        <td data-utc="{{ expiry.created_at }}">
+                                            {{ expiry.created_at }}
+                                        </td>
+                                        <td data-utc="{{ expiry.updated_at }}">
+                                            {{ expiry.updated_at }}
+                                        </td>
+                                        <td>{{ expiry.code }}</td>
+                                        <td>{{ expiry.sqlite_modifier }}</td>
+                                        <td>
+                                            {{ expiry.sqlite_num_of_modifier }}
+                                        </td>
+                                        <td>
+                                            {{ t(key=expiry.code, lang="de-DE")
+                                            }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

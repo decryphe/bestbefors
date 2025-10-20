@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %} {% include "inc_navbar.html" %}
+    <body class="container">
+        <h1>Add Inventory Item</h1>
+        <form method="POST">
+            <div class="mb-3">
+                <label for="itemKindName" class="form-label">
+                    Item Kind Name
+                </label>
+                <input
+                    type="text"
+                    class="form-control"
+                    id="itemKindName"
+                    name="name"
+                />
+            </div>
+
+            <div class="mb-3">
+                <label for="itemChecklist" class="form-label">
+                    Default Checklist
+                </label>
+                <select
+                    class="form-select"
+                    id="itemChecklist"
+                    name="default_checklist_id"
+                >
+                    {% for checklist in checklists %} {% if loop.first %}
+                    <option value="{{ checklist.id }}" selected>
+                        {{ checklist.name }}
+                    </option>
+                    {% else %}
+                    <option value="{{ checklist.id }}">
+                        {{ checklist.name }}
+                    </option>
+                    {% endif %} {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="itemCheckInterval" class="form-label">
+                    Default Check Interval
+                </label>
+                <select
+                    class="form-select"
+                    id="itemCheckInterval"
+                    name="default_interval_id"
+                >
+                    {% for interval in intervals %} {% if loop.first %}
+                    <option value="{{ interval.id }}" selected>
+                        {{ t(key=interval.code, lang="de-DE") }}
+                    </option>
+                    {% else %}
+                    <option value="{{ interval.id }}">
+                        {{ t(key=interval.code, lang="de-DE") }}
+                    </option>
+                    {% endif %} {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="itemExpiry" class="form-label">
+                    Default Item Expiry
+                </label>
+                <select
+                    class="form-select"
+                    id="itemExpiry"
+                    name="default_expiry_id"
+                >
+                    {% for expiry in expiries %} {% if loop.first %}
+                    <option value="{{ expiry.id }}" selected>
+                        {{ t(key=expiry.code, lang="de-DE") }}
+                    </option>
+                    {% else %}
+                    <option value="{{ expiry.id }}">
+                        {{ t(key=expiry.code, lang="de-DE") }}
+                    </option>
+                    {% endif %} {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+        <div class="row">
+            <div class="col"></div>
+        </div>
+    </body>
+</html>

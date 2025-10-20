@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %}
+    {% include "inc_navbar.html" %}
+    <body class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="mb-0">Check {{ item.name }}</h1>
+            <a class="btn btn-outline-secondary" href="/inventory/list">Back to inventory</a>
+        </div>
+        <p class="text-muted">
+            Checklist: <strong>{{ checklist.name }}</strong>
+        </p>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div><strong>Serial:</strong> {{ item.serial_number | default(value="-") }}</div>
+                        <div><strong>Checklist:</strong> {{ checklist.name }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div>
+                            <strong>Created:</strong>
+                            <span data-utc="{{ item.created_at }}">{{ item.created_at }}</span>
+                        </div>
+                        <div>
+                            <strong>Interval:</strong>
+                            {{ item.interval_id }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form id="check-form" class="card">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label" for="checked-by">Performed by</label>
+                        <select class="form-select" id="checked-by">
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="overall-result">Overall Result</label>
+                        <select class="form-select" id="overall-result">
+                            {% for result in results %}
+                            <option value="{{ result.id }}">{{ result.code }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="overall-notes">Notes</label>
+                        <input
+                            class="form-control"
+                            id="overall-notes"
+                            type="text"
+                            placeholder="Optional notes"
+                        />
+                    </div>
+                </div>
+            </div>
+            <div class="card-body border-top">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px">#</th>
+                                <th>Step</th>
+                                <th style="width: 200px">Result</th>
+                                <th style="width: 250px">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for step in steps %}
+                            <tr data-step-id="{{ step.id }}">
+                                <td>{{ step.position }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ step.name }}</div>
+                                    <div class="text-muted small">
+                                        {{ step.description | default(value="") }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <select class="form-select step-result">
+                                        {% for result in results %}
+                                        <option value="{{ result.id }}">{{ result.code }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <input
+                                        class="form-control step-notes"
+                                        type="text"
+                                        placeholder="Optional notes"
+                                    />
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer d-flex gap-2">
+                <button class="btn btn-primary" type="submit">Save Check</button>
+                <a class="btn btn-outline-secondary" href="/inventory/list">Cancel</a>
+            </div>
+        </form>
+
+        <script>
+            (function () {
+                const form = document.getElementById("check-form");
+                form.addEventListener("submit", async (event) => {
+                    event.preventDefault();
+                    const payload = {
+                        checked_by: Number(document.getElementById("checked-by").value),
+                        result_id: Number(document.getElementById("overall-result").value),
+                        notes: document.getElementById("overall-notes").value,
+                        steps: [],
+                    };
+
+                    document.querySelectorAll("tr[data-step-id]").forEach((row) => {
+                        const stepId = Number(row.dataset.stepId);
+                        const result = row.querySelector(".step-result");
+                        const notes = row.querySelector(".step-notes");
+                        payload.steps.push({
+                            checklist_step_id: stepId,
+                            result_id: Number(result.value),
+                            notes: notes.value,
+                        });
+                    });
+
+                    try {
+                        const response = await fetch(
+                            "/inventory/item/{{ item.id }}/check",
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify(payload),
+                            },
+                        );
+
+                        if (response.ok) {
+                            window.location.href = "/inventory/list";
+                            return;
+                        }
+
+                        const message = await response.text();
+                        alert(message || "Failed to store check result.");
+                    } catch (error) {
+                        console.error(error);
+                        alert("Network error while storing check.");
+                    }
+                });
+            })();
+        </script>
+    </body>
+</html>

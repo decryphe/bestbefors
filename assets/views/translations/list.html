@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %} {% include "inc_navbar.html" %}
+    <body class="container">
+        <h1>List of Translations</h1>
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Created At</th>
+                                        <th>Updated At</th>
+                                        <th>Code</th>
+                                        <th>Lang</th>
+                                        <th>Text</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for translation in translations %}
+                                    <tr>
+                                        <td>{{ translation.id }}</td>
+                                        <td
+                                            data-utc="{{ translation.created_at }}"
+                                        >
+                                            {{ translation.created_at }}
+                                        </td>
+                                        <td
+                                            data-utc="{{ translation.updated_at }}"
+                                        >
+                                            {{ translation.updated_at }}
+                                        </td>
+                                        <td>{{ translation.code }}</td>
+                                        <td>{{ translation.lang }}</td>
+                                        <td>{{ translation.text }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

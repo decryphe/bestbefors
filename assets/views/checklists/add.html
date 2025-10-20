@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %} {% include "inc_navbar.html" %}
+    <body class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="mb-0">Add Checklist</h1>
+            <a class="btn btn-outline-secondary" href="/checklists/list"
+                >Back to list</a
+            >
+        </div>
+        <hr />
+        <form id="checklist-form">
+            <div class="card mb-4">
+                <div class="card-header">Checklist Details</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="checklist-name"
+                            >Name</label
+                        >
+                        <input
+                            class="form-control"
+                            id="checklist-name"
+                            name="name"
+                            type="text"
+                            placeholder="Enter checklist name"
+                        />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="checklist-description"
+                            >Description</label
+                        >
+                        <textarea
+                            class="form-control"
+                            id="checklist-description"
+                            name="description"
+                            rows="3"
+                            placeholder="Add an optional description"
+                        ></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div
+                    class="card-header d-flex justify-content-between align-items-center"
+                >
+                    <span>Checklist Steps</span>
+                    <button
+                        class="btn btn-outline-primary btn-sm"
+                        type="button"
+                        onclick="addChecklistStep()"
+                    >
+                        Add Step
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th style="width: 90px">Position</th>
+                                    <th style="width: 25%">Step Title</th>
+                                    <th>Description</th>
+                                    <th style="width: 120px" class="text-end">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="checklist-steps"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex gap-2">
+                <button class="btn btn-primary" type="submit">
+                    Save Checklist
+                </button>
+                <button class="btn btn-outline-secondary" type="reset">
+                    Reset Form
+                </button>
+            </div>
+        </form>
+        <script>
+            function addChecklistStep() {
+                const tbody = document.getElementById("checklist-steps");
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>
+                        <input class="form-control" type="number" min="1" />
+                    </td>
+                    <td>
+                        <input class="form-control" type="text" placeholder="Step name" />
+                    </td>
+                    <td>
+                        <textarea class="form-control" rows="1" placeholder="Describe what to check"></textarea>
+                    </td>
+                    <td class="text-end">
+                        <button class="btn btn-outline-danger btn-sm" type="button" onclick="removeChecklistStep(this)">
+                            Remove
+                        </button>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+                reindexChecklistSteps();
+            }
+
+            function removeChecklistStep(button) {
+                const row = button.closest("tr");
+                if (row) {
+                    row.remove();
+                    reindexChecklistSteps();
+                }
+            }
+
+            function reindexChecklistSteps() {
+                const rows = document.querySelectorAll("#checklist-steps tr");
+                rows.forEach((row, index) => {
+                    const positionInput = row.querySelector(
+                        'input[type="number"]',
+                    );
+                    const nameInput = row.querySelector('input[type="text"]');
+                    const descriptionInput = row.querySelector("textarea");
+
+                    if (positionInput) {
+                        positionInput.name = `steps[${index}][position]`;
+                        if (!positionInput.value) {
+                            positionInput.value = String(index + 1);
+                        }
+                    }
+                    if (nameInput) {
+                        nameInput.name = `steps[${index}][name]`;
+                    }
+                    if (descriptionInput) {
+                        descriptionInput.name = `steps[${index}][description]`;
+                    }
+                });
+            }
+
+            async function submitChecklistForm(event) {
+                event.preventDefault();
+                const payload = {
+                    name: document.getElementById("checklist-name").value,
+                    description: document.getElementById("checklist-description")
+                        .value,
+                    steps: [],
+                };
+
+                document.querySelectorAll("#checklist-steps tr").forEach(
+                    (row) => {
+                        const positionInput = row.querySelector(
+                            'input[type="number"]',
+                        );
+                        const nameInput =
+                            row.querySelector('input[type="text"]');
+                        const descriptionInput = row.querySelector("textarea");
+
+                        payload.steps.push({
+                            position: positionInput?.value
+                                ? Number(positionInput.value)
+                                : null,
+                            name: nameInput?.value ?? "",
+                            description: descriptionInput?.value ?? "",
+                        });
+                    },
+                );
+
+                try {
+                    const response = await fetch("/checklists/add", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (response.ok) {
+                        window.location.href = "/checklists/list";
+                        return;
+                    }
+
+                    const message = await response.text();
+                    alert(message || "Failed to save checklist");
+                } catch (error) {
+                    alert("Network error while saving checklist");
+                    console.error(error);
+                }
+            }
+
+            window.addEventListener("load", () => {
+                document
+                    .getElementById("checklist-form")
+                    .addEventListener("submit", submitChecklistForm);
+                addChecklistStep();
+            });
+        </script>
+    </body>
+</html>

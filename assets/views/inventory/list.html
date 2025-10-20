@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %} {% include "inc_navbar.html" %}
+    <body class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="mb-0">List of Inventory Items</h1>
+            <a class="btn btn-primary" href="/inventory/add"
+                >Add Inventory Item</a
+            >
+        </div>
+        <hr />
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Created At</th>
+                                        <th>Updated At</th>
+                                        <th>Name</th>
+                                        <th>Serial</th>
+                                        <th>Last Checked</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in inventory %}
+                                    <tr>
+                                        <td>{{ item.id }}</td>
+                                        <td data-utc="{{ item.created_at }}">
+                                            {{ item.created_at }}
+                                        </td>
+                                        <td data-utc="{{ item.updated_at }}">
+                                            {{ item.updated_at }}
+                                        </td>
+                                        <td>{{ item.name }}</td>
+                                        <td>
+                                            {{ item.serial | default(value="-")
+                                            }}
+                                        </td>
+                                        <td
+                                            data-utc="{{ item.last_checked_at | default(value='-')}}"
+                                        >
+                                            {{ item.last_checked_at }}
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="btn-group">
+                                                <a
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    href="/inventory/item/{{ item.id }}"
+                                                >
+                                                    Details
+                                                </a>
+                                                <a
+                                                    class="btn btn-sm btn-primary"
+                                                    href="/inventory/item/{{ item.id }}/check"
+                                                >
+                                                    Check
+                                                </a>
+                                                <button
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    type="button"
+                                                    onclick="removeInventoryItem({{ item.id }})"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            async function removeInventoryItem(id) {
+                const confirmed = window.confirm(
+                    "Remove this inventory item? This is only allowed if it has no checks.",
+                );
+                if (!confirmed) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/inventory/item/${id}`, {
+                        method: "DELETE",
+                    });
+
+                    if (response.ok) {
+                        window.location.reload();
+                        return;
+                    }
+
+                    const message = await response.text();
+                    alert(message || "Inventory item could not be removed.");
+                } catch (error) {
+                    console.error(error);
+                    alert("Network error while removing inventory item.");
+                }
+            }
+        </script>
+    </body>
+</html>

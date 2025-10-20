@@ -1,0 +1,8 @@
+EXPIRY_ONE_YEAR = In one Year
+EXPIRY_TWO_YEARS = In two Years
+EXPIRY_FIVE_YEARS = In five Years
+EXPIRY_TEN_YEARS = In ten Years
+EXPIRY_THREE_MONTH = In three Months
+EXPIRY_SIX_MONTHS = In six Months
+EXPIRY_NINE_MONTHS = In nine Months
+EXPIRY_NEVER = Never

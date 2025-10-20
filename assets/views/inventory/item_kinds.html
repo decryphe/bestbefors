@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %}
+    {% include "inc_navbar.html" %}
+    <body class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="mb-0">Inventory Item Kinds</h1>
+            <a class="btn btn-primary" href="/inventory/add_item_kind">Add Item Kind</a>
+        </div>
+        <hr />
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Created At</th>
+                                        <th>Updated At</th>
+                                        <th>Default Checklist</th>
+                                        <th>Default Interval</th>
+                                        <th>Default Expiry</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in item_kinds %}
+                                    <tr>
+                                        <td>{{ row.kind.id }}</td>
+                                        <td>{{ row.kind.name }}</td>
+                                        <td>
+                                            <span data-utc="{{ row.kind.created_at }}">
+                                                {{ row.kind.created_at }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span data-utc="{{ row.kind.updated_at }}">
+                                                {{ row.kind.updated_at }}
+                                            </span>
+                                        </td>
+                                        <td>{{ row.default_checklist_name | default(value="-") }}</td>
+                                        <td>{{ row.default_interval_code | default(value="-") }}</td>
+                                        <td>{{ row.default_expiry_code | default(value="-") }}</td>
+                                        <td class="text-end">
+                                            <button
+                                                class="btn btn-outline-danger btn-sm"
+                                                type="button"
+                                                onclick="removeItemKind({{ row.kind.id }})"
+                                            >
+                                                Remove
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            async function removeItemKind(id) {
+                const confirmed = window.confirm(
+                    "Are you sure you want to remove this item kind?",
+                );
+                if (!confirmed) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/inventory/item_kinds/${id}`, {
+                        method: "DELETE",
+                    });
+
+                    if (response.ok) {
+                        window.location.reload();
+                        return;
+                    }
+
+                    const message = await response.text();
+                    alert(message || "Item kind could not be removed.");
+                } catch (error) {
+                    console.error(error);
+                    alert("Network error while removing item kind.");
+                }
+            }
+        </script>
+    </body>
+</html>

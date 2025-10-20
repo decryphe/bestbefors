@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %}
+    {% include "inc_navbar.html" %}
+    <body class="container">
+        <h1>Management</h1>
+        <p>Choose a dataset to review or edit.</p>
+        <ul class="list-group">
+            <li class="list-group-item">
+                <a href="/expiries/list">Expiries</a>
+            </li>
+            <li class="list-group-item">
+                <a href="/intervals/list">Intervals</a>
+            </li>
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span><a href="/checklists/list">Checklists</a></span>
+                    <a class="btn btn-sm btn-outline-primary" href="/checklists/add">Add checklist</a>
+                </div>
+            </li>
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span><a href="/inventory/item_kinds">Inventory Item Kinds</a></span>
+                    <a class="btn btn-sm btn-outline-primary" href="/inventory/add_item_kind">
+                        Add item kind
+                    </a>
+                </div>
+            </li>
+            <li class="list-group-item">
+                <a href="/translations/list">Translations</a>
+            </li>
+        </ul>
+        <p class="mt-3">
+            Inventory listings remain available under
+            <a href="/inventory/list">Inventory</a>.
+        </p>
+    </body>
+</html>

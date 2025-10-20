@@ -1,0 +1,13 @@
+---
+- id: 1
+  code: RESULT_OK
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 2
+  code: RESULT_FAIL
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 3
+  code: RESULT_CHECK
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"

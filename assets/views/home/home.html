@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %} {% include "inc_navbar.html" %}
+    <body class="container">
+        <h1>Dashboard</h1>
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Serial</th>
+                                        <th>Created</th>
+                                        <th>Checklist</th>
+                                        <th>Last checked</th>
+                                        <th>Next expiry</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td>{{ item.item.id }}</td>
+                                        <td>{{ item.item.name }}</td>
+                                        <td>{{ item.item.serial_number }}</td>
+                                        <td
+                                            data-utc="{{ item.item.created_at }}"
+                                        >
+                                            {{ item.item.created_at }}
+                                        </td>
+                                        <td>{{ item.checklist_name }}</td>
+                                        <td>
+                                            {% if item.item.last_checked_at %}
+                                            <span data-utc="{{ item.item.last_checked_at }}">
+                                                {{ item.item.last_checked_at }}
+                                            </span>
+                                            {% else %}
+                                            <span class="text-muted">Never</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-utc="{{ item.next_expiry }}">
+                                            {{ item.next_expiry }}
+                                        </td>
+                                        <td class="text-end d-flex gap-2 justify-content-end">
+                                            <a
+                                                class="btn btn-sm btn-outline-secondary"
+                                                href="/inventory/item/{{ item.item.id }}"
+                                            >
+                                                Details
+                                            </a>
+                                            <a
+                                                class="btn btn-sm btn-primary"
+                                                href="/inventory/item/{{ item.item.id }}/check"
+                                            >
+                                                Check
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

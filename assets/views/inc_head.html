@@ -1,0 +1,51 @@
+<head>
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+        crossorigin="anonymous"
+    />
+    <script>
+        Date.prototype.toISODate = function () {
+            if (isNaN(this.getTime())) return "Invalid Date";
+            return (
+                this.getFullYear().toString().padStart(4, "0") +
+                "-" +
+                (this.getMonth() + 1).toString().padStart(2, "0") +
+                "-" +
+                this.getDate().toString().padStart(2, "0")
+            );
+        };
+        Date.prototype.toISOTime = function () {
+            if (isNaN(this.getTime())) return "Invalid Date";
+            return (
+                this.getHours().toString().padStart(2, "0") +
+                ":" +
+                this.getMinutes().toString().padStart(2, "0") +
+                ":" +
+                this.getSeconds().toString().padStart(2, "0")
+            );
+        };
+        Date.prototype.toISODateTime = function () {
+            if (isNaN(this.getTime())) return "Invalid Date";
+            return this.toISODate() + " " + this.toISOTime();
+        };
+
+        window.utcToLocalDateTime = function utcToLocalDateTime(isoUtcString) {
+            const date = new Date(isoUtcString);
+            if (Number.isNaN(date.getTime())) {
+                return isoUtcString;
+            }
+            return date.toISODateTime();
+        };
+
+        window.addEventListener("load", () => {
+            document.querySelectorAll("[data-utc]").forEach((el) => {
+                const value = el.getAttribute("data-utc");
+                if (value) {
+                    el.textContent = window.utcToLocalDateTime(value);
+                }
+            });
+        });
+    </script>
+</head>

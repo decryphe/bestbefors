@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %}
+    <body class="container py-5" style="max-width: 520px">
+        <div class="text-center mb-4">
+            <h1 class="h3">Sign out</h1>
+            <p class="text-muted">
+                Logging out clears the stored API token from this browser.
+            </p>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <p>
+                    Click the button below to clear your local authentication token.
+                    You can sign back in at any time from the
+                    <a href="/auth/login">login page</a>.
+                </p>
+                <button class="btn btn-danger w-100 mb-3" id="logout-button">
+                    Log out
+                </button>
+                <div id="logout-alert" class="alert d-none" role="alert"></div>
+                <p class="mb-0">
+                    Need to switch accounts?
+                    <a href="/auth/login">Return to login</a>
+                </p>
+            </div>
+        </div>
+
+        <script>
+            const logoutButton = document.getElementById("logout-button");
+            const logoutAlert = document.getElementById("logout-alert");
+
+            logoutButton.addEventListener("click", () => {
+                localStorage.removeItem("auth_token");
+                logoutAlert.textContent = "Logged out successfully.";
+                logoutAlert.classList.remove("d-none", "alert-danger");
+                logoutAlert.classList.add("alert-success");
+                setTimeout(() => {
+                    window.location.href = "/auth/login";
+                }, 800);
+            });
+        </script>
+    </body>
+</html>

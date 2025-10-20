@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+    {% include "inc_head.html" %} {% include "inc_navbar.html" %}
+    <body class="container" onload="calculateExpiry()">
+        <h1>Add Inventory Item</h1>
+        <form method="POST">
+            <div class="mb-3">
+                <label for="itemName" class="form-label"> Item Name </label>
+                <input
+                    type="text"
+                    class="form-control"
+                    id="itemName"
+                    name="name"
+                />
+            </div>
+            <div class="mb-3">
+                <label for="itemSerial" class="form-label">
+                    Serial Number
+                </label>
+                <input
+                    type="text"
+                    class="form-control"
+                    id="itemSerial"
+                    name="serial_number"
+                />
+            </div>
+
+            <script>
+                const item_kinds = {{ item_kinds | json_encode() | safe }};
+                const expiries = {{ expiries | json_encode() | safe }};
+                function calculateExpiry() {
+                    let expiry = expiries.find((e) => e.id == document.getElementById("itemExpirySelect").value);
+                    let utcNow = new Date();
+
+                    let newExpiry = new Date();
+                    if (expiry.sqlite_modifier === "months") {
+                        newExpiry = new Date(utcNow.setMonth(utcNow.getMonth() + expiry.sqlite_num_of_modifier));
+                    } else if (expiry.sqlite_modifier === "years") {
+                        newExpiry = new Date(utcNow.setFullYear(utcNow.getFullYear() + expiry.sqlite_num_of_modifier));
+                    } else if (expiry.sqlite_modifier === "never") {
+                      newExpiry = null;
+                    }
+
+                    if (expiry.sqlite_modifier === "never") {
+                        document.getElementById("itemExpiry").setAttribute("disabled", "true");
+                        document.getElementById("itemExpiry").value = null;
+                    } else {
+                        document.getElementById("itemExpiry").removeAttribute("disabled");
+                        document.getElementById("itemExpiry").value = newExpiry.toISOString().substring(0,10);
+                    }
+                }
+                function onChangeItemKind(element) {
+                    let item_kind = item_kinds.find((item) => item.id == element.value);
+                    document.getElementById("itemChecklist").value = item_kind.default_checklist_id;
+                    document.getElementById("itemCheckInterval").value = item_kind.default_interval_id;
+                    document.getElementById("itemExpirySelect").value = item_kind.default_expiry_id;
+                    calculateExpiry();
+                }
+            </script>
+            <div class="mb-3">
+                <label for="itemKind" class="form-label"> Item Kind </label>
+                <select
+                    class="form-select"
+                    id="itemKind"
+                    name="item_kind_id"
+                    onchange="onChangeItemKind(this)"
+                >
+                    {% for item_kind in item_kinds %} {% if loop.first %}
+                    <option value="{{ item_kind.id }}" selected>
+                        {{ item_kind.name }}
+                    </option>
+                    {% else %}
+                    <option value="{{ item_kind.id }}">
+                        {{ item_kind.name }}
+                    </option>
+                    {% endif %} {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="itemChecklist" class="form-label">
+                    Checklist
+                </label>
+                <select
+                    class="form-select"
+                    id="itemChecklist"
+                    name="checklist_id"
+                >
+                    {% for checklist in checklists %} {% if loop.first %}
+                    <option value="{{ checklist.id }}" selected>
+                        {{ checklist.name }}
+                    </option>
+                    {% else %}
+                    <option value="{{ checklist.id }}">
+                        {{ checklist.name }}
+                    </option>
+                    {% endif %} {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="itemCheckInterval" class="form-label">
+                    Check Interval
+                </label>
+                <select
+                    class="form-select"
+                    id="itemCheckInterval"
+                    name="interval_id"
+                >
+                    {% for interval in intervals %} {% if loop.first %}
+                    <option value="{{ interval.id }}" selected>
+                        {{ t(key=interval.code, lang="de-DE") }}
+                    </option>
+                    {% else %}
+                    <option value="{{ interval.id }}">
+                        {{ t(key=interval.code, lang="de-DE") }}
+                    </option>
+                    {% endif %} {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="itemExpirySelect" class="form-label">
+                    Expiry
+                </label>
+                <select
+                    class="form-select mb-3"
+                    id="itemExpirySelect"
+                    onchange="calculateExpiry()"
+                >
+                    {% for expiry in expiries %} {% if loop.first %}
+                    <option value="{{ expiry.id }}" selected>
+                        {{ t(key=expiry.code, lang="de-DE") }}
+                    </option>
+                    {% else %}
+                    <option value="{{ expiry.id }}">
+                        {{ t(key=expiry.code, lang="de-DE") }}
+                    </option>
+                    {% endif %} {% endfor %}
+                </select>
+                <input
+                    class="form-control"
+                    type="date"
+                    id="itemExpiry"
+                    name="expiry"
+                    value=""
+                    min="2020-01-01"
+                    max="2100-01-01"
+                    disabled
+                />
+            </div>
+
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+        <div class="row">
+            <div class="col"></div>
+        </div>
+    </body>
+</html>

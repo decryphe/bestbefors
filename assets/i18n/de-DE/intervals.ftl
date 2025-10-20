@@ -1,0 +1,5 @@
+INTERVAL_MONTHLY = Monatlich
+INTERVAL_QUARTERLY = Vierteljährlich
+INTERVAL_TWICEYEARLY = Halbjährlich
+INTERVAL_YEARLY = Jährlich
+INTERVAL_BIYEARLY = Zweijährlich

@@ -1,0 +1,3 @@
+RESULT_OK = OK
+RESULT_FAIL = Nicht OK
+RESULT_CHECK = In Abklärung

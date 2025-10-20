@@ -1,0 +1,201 @@
+---
+- id: 1
+  code: INTERVAL_MONTHLY
+  lang: DE
+  text: Monatlich
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 2
+  code: INTERVAL_QUARTERLY
+  lang: DE
+  text: Vierteljährlich
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 3
+  code: INTERVAL_TWICEYEARLY
+  lang: DE
+  text: Halbjährlich
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 4
+  code: INTERVAL_YEARLY
+  lang: DE
+  text: Jährlich
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 5
+  code: INTERVAL_BIYEARLY
+  lang: DE
+  text: Zweijährlich
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+
+- id: 6
+  code: INTERVAL_MONTHLY
+  lang: EN
+  text: Monthly
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 7
+  code: INTERVAL_QUARTERLY
+  lang: EN
+  text: Quarterly
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 8
+  code: INTERVAL_TWICEYEARLY
+  lang: EN
+  text: Twice-Yearly
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 9
+  code: INTERVAL_YEARLY
+  lang: EN
+  text: Yearly
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 10
+  code: INTERVAL_BIYEARLY
+  lang: EN
+  text: Bi-Yearly
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+
+- id: 11
+  code: RESULT_OK
+  lang: DE
+  text: OK
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 12
+  code: RESULT_FAIL
+  lang: DE
+  text: Nicht OK
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 13
+  code: RESULT_CHECK
+  lang: DE
+  text: In Abklärung
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+
+- id: 14
+  code: RESULT_OK
+  lang: EN
+  text: OK
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 15
+  code: RESULT_FAIL
+  lang: EN
+  text: Not OK
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 16
+  code: RESULT_CHECK
+  lang: EN
+  text: Checking
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+
+- id: 17
+  code: EXPIRY_ONE_YEAR
+  lang: DE
+  text: In einem Jahr
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 18
+  code: EXPIRY_TWO_YEARS
+  lang: DE
+  text: In zwei Jahren
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 19
+  code: EXPIRY_FIVE_YEARS
+  lang: DE
+  text: In fünf Jahren
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 20
+  code: EXPIRY_TEN_YEARS
+  lang: DE
+  text: In zehn Jahren
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+
+- id: 21
+  code: EXPIRY_ONE_YEAR
+  lang: EN
+  text: In one Year
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 22
+  code: EXPIRY_TWO_YEARS
+  lang: EN
+  text: In two Years
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 23
+  code: EXPIRY_FIVE_YEARS
+  lang: EN
+  text: In five Years
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 24
+  code: EXPIRY_TEN_YEARS
+  lang: EN
+  text: In ten Years
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+
+- id: 25
+  code: EXPIRY_THREE_MONTH
+  lang: DE
+  text: In drei Monaten
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 26
+  code: EXPIRY_SIX_MONTHS
+  lang: DE
+  text: In sechs Monaten
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 27
+  code: EXPIRY_NINE_MONTHS
+  lang: DE
+  text: In neun Monaten
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+
+- id: 28
+  code: EXPIRY_THREE_MONTH
+  lang: EN
+  text: In three Months
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 29
+  code: EXPIRY_SIX_MONTHS
+  lang: EN
+  text: In six Months
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 30
+  code: EXPIRY_NINE_MONTHS
+  lang: EN
+  text: In nine Months
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+
+- id: 31
+  code: EXPIRY_NEVER
+  lang: DE
+  text: Nie
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"
+- id: 32
+  code: EXPIRY_NEVER
+  lang: EN
+  text: Never
+  created_at: "2025-01-01T00:00:00.000Z"
+  updated_at: "2025-01-01T00:00:00.000Z"

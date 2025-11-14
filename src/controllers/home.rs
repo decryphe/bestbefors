@@ -2,9 +2,11 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 
+use chrono::{Duration, Utc};
 use loco_rs::prelude::*;
+use std::fmt;
 
-use crate::models::*;
+use crate::models::{intervals, inventory_item_checks, inventory_items};
 
 #[derive(serde::Serialize)]
 struct HomeEntryCheck {
@@ -24,6 +26,37 @@ struct HomeEntry {
     item_kind_name: String,
     interval: intervals::Model,
     next_expiry: DateTimeWithTimeZone,
+    urgency: UrgencyLevel,
+}
+
+#[derive(Copy, Clone, Debug, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum UrgencyLevel {
+    Normal,
+    Warning,
+    Critical,
+}
+
+impl fmt::Display for UrgencyLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let label = match self {
+            UrgencyLevel::Normal => "NORMAL",
+            UrgencyLevel::Warning => "WARNING",
+            UrgencyLevel::Critical => "CRITICAL",
+        };
+        f.write_str(label)
+    }
+}
+
+fn calculate_urgency(next_expiry: &DateTimeWithTimeZone) -> UrgencyLevel {
+    let now = Utc::now();
+    if *next_expiry < now {
+        UrgencyLevel::Critical
+    } else if *next_expiry <= now + Duration::days(7) {
+        UrgencyLevel::Warning
+    } else {
+        UrgencyLevel::Normal
+    }
 }
 
 pub async fn home(
@@ -44,7 +77,7 @@ pub async fn home(
 
     let mut items: Vec<HomeEntry> = items
         .into_iter()
-        .map(|(item, checks)| {
+        .filter_map(|(item, checks)| {
             let checklist = checklists.get(&item.checklist_id)?;
             let item_kind = item_kinds.get(&item.inventory_item_kind_id)?;
             let interval = intervals.get(&item.interval_id)?;
@@ -55,12 +88,13 @@ pub async fn home(
                     next_expiry = expiry;
                 }
             }
+            let urgency = calculate_urgency(&next_expiry);
 
             Some(HomeEntry {
                 item,
                 item_checks: checks
                     .into_iter()
-                    .map(|check| {
+                    .filter_map(|check| {
                         let checklist = checklists.get(&check.executed_checklist_id)?;
                         let user = users.get(&check.checked_by)?;
                         let result = results.get(&check.result_id)?;
@@ -73,16 +107,15 @@ pub async fn home(
                             checklist_description: checklist.description.clone(),
                         })
                     })
-                    .filter_map(|c| c)
                     .collect(),
                 checklist_name: checklist.name.clone(),
                 checklist_description: checklist.description.clone(),
                 item_kind_name: item_kind.name.clone(),
                 interval: interval.clone(),
                 next_expiry,
+                urgency,
             })
         })
-        .filter_map(|c| c)
         .collect();
     items.sort_unstable_by_key(|i| i.next_expiry);
 
@@ -95,5 +128,8 @@ pub async fn manage(ViewEngine(v): ViewEngine<TeraView>) -> Result<Response> {
 }
 
 pub fn routes() -> Routes {
-    Routes::new().prefix("/").add("", get(home)).add("manage", get(manage))
+    Routes::new()
+        .prefix("/")
+        .add("", get(home))
+        .add("manage", get(manage))
 }

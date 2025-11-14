@@ -1,8 +1,8 @@
 use chrono::Utc;
 use loco_rs::prelude::*;
 use sea_orm::{
-    ActiveValue, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
-    TransactionTrait,
+    ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder, TransactionTrait,
 };
 use std::collections::HashMap;
 
@@ -14,10 +14,12 @@ use crate::models::_entities::{
     inventory_items::Column as InventoryItemsColumn,
 };
 use crate::{
+    exts::{BTreeMapExt, OptionStringExt, StringExt},
     initializers::app_cache::{refresh_item_kinds_cache, AppData},
     models::{
-        checklist_steps, executed_checklist_steps, executed_checklists, inventory_item_check_steps,
-        inventory_item_checks, inventory_item_kinds, inventory_items,
+        checklist_steps, checklists, executed_checklist_steps, executed_checklists, expiries,
+        intervals, inventory_item_check_steps, inventory_item_checks, inventory_item_kinds,
+        inventory_items,
     },
 };
 
@@ -46,15 +48,141 @@ struct ItemCheckView {
     steps: Vec<ItemCheckStepView>,
 }
 
+#[derive(serde::Serialize)]
+struct InventoryListItem {
+    #[serde(flatten)]
+    item: inventory_items::Model,
+    kind_name: Option<String>,
+    serial: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct InventoryListQuery {
+    q: Option<String>,
+}
+
+struct StepResultInput {
+    checklist_step_id: i32,
+    result_id: i32,
+    notes: Option<String>,
+}
+
+struct ValidatedCheckPayload {
+    steps_template: Vec<checklist_steps::Model>,
+    steps: Vec<StepResultInput>,
+    notes: Option<String>,
+    checked_by: i32,
+    result_id: i32,
+}
+
+struct ItemFormLookups {
+    checklists: Vec<checklists::Model>,
+    expiries: Vec<expiries::Model>,
+    intervals: Vec<intervals::Model>,
+    item_kinds: Vec<inventory_item_kinds::Model>,
+}
+
+async fn build_item_form_lookups(ctx: &AppContext) -> Result<ItemFormLookups> {
+    let checklists = checklists::Entity::find().all(&ctx.db).await?;
+    let expiries = expiries::Entity::find().all(&ctx.db).await?;
+    let intervals = intervals::Entity::find().all(&ctx.db).await?;
+    let item_kinds = inventory_item_kinds::Entity::find().all(&ctx.db).await?;
+    Ok(ItemFormLookups {
+        checklists,
+        expiries,
+        intervals,
+        item_kinds,
+    })
+}
+
+async fn render_inventory_item_form(
+    view: &TeraView,
+    ctx: &AppContext,
+    item: Option<inventory_items::Model>,
+    form_action: String,
+    form_title: String,
+    submit_label: String,
+) -> Result<Response> {
+    let lookups = build_item_form_lookups(ctx).await?;
+    let ItemFormLookups {
+        checklists,
+        expiries,
+        intervals,
+        item_kinds,
+    } = lookups;
+    // let has_item = item.is_some();
+    // let item_json = item.map_or(serde_json::Value::Null, |model| {
+    //     serde_json::to_value(model).unwrap_or(serde_json::Value::Null)
+    // });
+    format::render().view(
+        view,
+        "inventory/add_item.html",
+        data!({
+            "checklists": checklists,
+            "expiries": expiries,
+            "intervals": intervals,
+            "item_kinds": item_kinds,
+            "item": item,
+            "form_action": form_action,
+            "form_title": form_title,
+            "submit_label": submit_label,
+            "is_edit": item.is_some(),
+        }),
+    )
+}
+
 #[debug_handler]
 pub async fn list(
     ViewEngine(v): ViewEngine<TeraView>,
     State(ctx): State<AppContext>,
+    Query(query): Query<InventoryListQuery>,
 ) -> Result<Response> {
-    let inventory = crate::models::inventory_items::Entity::find()
-        .all(&ctx.db)
-        .await?;
-    format::render().view(&v, "inventory/list.html", data!({ "inventory": inventory }))
+    let search_term = query.q.and_then(StringExt::clean);
+    let search_term_lower = search_term.as_ref().map(|term| term.to_lowercase());
+    let item_kinds = ctx.get_item_kinds()?;
+    let inventory = inventory_items::Entity::find().all(&ctx.db).await?;
+
+    if let Some(term_lower) = &search_term_lower {
+        if let Some(match_item) = inventory.iter().find(|item| {
+            item.serial_number
+                .as_deref()
+                .is_some_and(|serial| serial.to_lowercase() == *term_lower)
+        }) {
+            return format::redirect(&format!("/inventory/item/{}", match_item.id));
+        }
+    }
+
+    let inventory = inventory
+        .into_iter()
+        .filter(|item| {
+            if let Some(needle) = search_term_lower.as_deref() {
+                let name_match = item.name.to_lowercase().contains(needle);
+                let serial_match = item
+                    .serial_number
+                    .as_deref()
+                    .is_some_and(|serial| serial.to_lowercase().contains(needle));
+                let kind_match = item_kinds
+                    .get(&item.inventory_item_kind_id)
+                    .is_some_and(|kind| kind.name.to_lowercase().contains(needle));
+                name_match || serial_match || kind_match
+            } else {
+                true
+            }
+        })
+        .map(|item| InventoryListItem {
+            kind_name: item_kinds.get_cloned(&item.inventory_item_kind_id, |kind| &kind.name),
+            serial: item.serial_number.clone(),
+            item,
+        })
+        .collect::<Vec<_>>();
+    format::render().view(
+        &v,
+        "inventory/list.html",
+        data!({
+            "inventory": inventory,
+            "inventory_search": search_term,
+        }),
+    )
 }
 
 #[debug_handler]
@@ -63,10 +191,7 @@ pub async fn show_item_details(
     State(ctx): State<AppContext>,
     Path(id): Path<i32>,
 ) -> Result<Response> {
-    let Some(item) = inventory_items::Entity::find_by_id(id)
-        .one(&ctx.db)
-        .await?
-    else {
+    let Some(item) = inventory_items::Entity::find_by_id(id).one(&ctx.db).await? else {
         return Err(loco_rs::Error::NotFound);
     };
 
@@ -74,13 +199,11 @@ pub async fn show_item_details(
     let results = ctx.get_results()?;
     let users = ctx.get_users()?;
     let checklists = ctx.get_checklists()?;
+    let intervals = ctx.get_intervals()?;
 
-    let item_kind_name = item_kinds
-        .get(&item.inventory_item_kind_id)
-        .map(|k| k.name.clone());
-    let checklist_name = checklists
-        .get(&item.checklist_id)
-        .map(|c| c.name.clone());
+    let item_kind_name = item_kinds.get_cloned(&item.inventory_item_kind_id, |kind| &kind.name);
+    let checklist_name = checklists.get_cloned(&item.checklist_id, |c| &c.name);
+    let interval_name = intervals.get_cloned(&item.interval_id, |i| &i.code);
 
     let checks = inventory_item_checks::Entity::find()
         .filter(InventoryItemChecksColumn::InventoryItemId.eq(item.id))
@@ -91,9 +214,9 @@ pub async fn show_item_details(
     let mut rendered_checks = Vec::new();
     for check in checks {
         let executed_steps = executed_checklist_steps::Entity::find()
-            .filter(ExecutedChecklistStepsColumn::ExecutedChecklistId.eq(
-                check.executed_checklist_id,
-            ))
+            .filter(
+                ExecutedChecklistStepsColumn::ExecutedChecklistId.eq(check.executed_checklist_id),
+            )
             .order_by_asc(ExecutedChecklistStepsColumn::Position)
             .all(&ctx.db)
             .await?;
@@ -124,12 +247,8 @@ pub async fn show_item_details(
         }
 
         let rendered = ItemCheckView {
-            checked_by: users
-                .get(&check.checked_by)
-                .map(|user| user.name.clone()),
-            result_code: results
-                .get(&check.result_id)
-                .map(|result| result.code.clone()),
+            checked_by: users.get_cloned(&check.checked_by, |user| &user.name),
+            result_code: results.get_cloned(&check.result_id, |result| &result.code),
             check,
             steps: steps_view,
         };
@@ -143,6 +262,7 @@ pub async fn show_item_details(
             "item": item,
             "item_kind_name": item_kind_name,
             "checklist_name": checklist_name,
+            "interval_name": interval_name,
             "checks": rendered_checks,
         }),
     )
@@ -159,17 +279,11 @@ pub async fn list_item_kinds(
     let expiries = ctx.get_expiries()?;
 
     let rows = item_kinds
-        .into_iter()
-        .map(|(_, kind)| InventoryItemKindRow {
-            default_checklist_name: checklists
-                .get(&kind.default_checklist_id)
-                .map(|c| c.name.clone()),
-            default_interval_code: intervals
-                .get(&kind.default_interval_id)
-                .map(|i| i.code.clone()),
-            default_expiry_code: expiries
-                .get(&kind.default_expiry_id)
-                .map(|e| e.code.clone()),
+        .into_values()
+        .map(|kind| InventoryItemKindRow {
+            default_checklist_name: checklists.get_cloned(&kind.default_checklist_id, |c| &c.name),
+            default_interval_code: intervals.get_cloned(&kind.default_interval_id, |i| &i.code),
+            default_expiry_code: expiries.get_cloned(&kind.default_expiry_id, |e| &e.code),
             kind,
         })
         .collect::<Vec<_>>();
@@ -186,21 +300,15 @@ pub async fn add_item(
     ViewEngine(v): ViewEngine<TeraView>,
     State(ctx): State<AppContext>,
 ) -> Result<Response> {
-    use crate::models::{checklists, expiries, intervals, inventory_item_kinds};
-    let checklists = checklists::Entity::find().all(&ctx.db).await?;
-    let expiries = expiries::Entity::find().all(&ctx.db).await?;
-    let intervals = intervals::Entity::find().all(&ctx.db).await?;
-    let inventory_item_kinds = inventory_item_kinds::Entity::find().all(&ctx.db).await?;
-    format::render().view(
+    render_inventory_item_form(
         &v,
-        "inventory/add_item.html",
-        data!({
-            "checklists": checklists,
-            "expiries": expiries,
-            "intervals": intervals,
-            "item_kinds": inventory_item_kinds,
-        }),
+        &ctx,
+        None,
+        "/inventory/add".to_string(),
+        "Add Inventory Item".to_string(),
+        "Add Item".to_string(),
     )
+    .await
 }
 
 #[derive(serde::Deserialize)]
@@ -218,7 +326,16 @@ pub async fn add_item_post(
     State(ctx): State<AppContext>,
     Form(params): Form<AddItemPostParams>,
 ) -> Result<Response> {
-    let expiry = if let Some(expiry) = params.expiry {
+    let AddItemPostParams {
+        name,
+        serial_number,
+        checklist_id,
+        interval_id,
+        item_kind_id,
+        expiry,
+    } = params;
+
+    let expiry = if let Some(expiry) = expiry {
         let naive_date = chrono::NaiveDate::parse_from_str(&expiry, "%Y-%m-%d")
             .map_err(|e| loco_rs::Error::BadRequest(e.to_string()))?;
         let naive_datetime = naive_date.and_hms_opt(0, 0, 0).ok_or_else(|| {
@@ -229,24 +346,82 @@ pub async fn add_item_post(
         None
     };
 
-    //let expiry = params.expiry(String::parse)?;
-    let serial_number = params.serial_number.trim();
-    let serial_number = if !serial_number.is_empty() {
-        Some(serial_number.to_owned())
-    } else {
-        None
-    };
+    let serial_number = serial_number.clean();
     let item = crate::models::inventory_items::ActiveModel {
-        name: ActiveValue::set(params.name),
+        name: ActiveValue::set(name),
         serial_number: ActiveValue::set(serial_number),
-        inventory_item_kind_id: ActiveValue::set(params.item_kind_id),
-        checklist_id: ActiveValue::set(params.checklist_id),
-        interval_id: ActiveValue::set(params.interval_id),
+        inventory_item_kind_id: ActiveValue::set(item_kind_id),
+        checklist_id: ActiveValue::set(checklist_id),
+        interval_id: ActiveValue::set(interval_id),
         expiry: ActiveValue::set(expiry),
         ..Default::default()
     };
     item.insert(&ctx.db).await?;
     format::redirect("/inventory/list")
+}
+
+#[debug_handler]
+pub async fn edit_item(
+    ViewEngine(v): ViewEngine<TeraView>,
+    State(ctx): State<AppContext>,
+    Path(id): Path<i32>,
+) -> Result<Response> {
+    let Some(item) = inventory_items::Entity::find_by_id(id).one(&ctx.db).await? else {
+        return Err(loco_rs::Error::NotFound);
+    };
+
+    render_inventory_item_form(
+        &v,
+        &ctx,
+        Some(item),
+        format!("/inventory/item/{id}/edit"),
+        "Edit Inventory Item".to_string(),
+        "Save Changes".to_string(),
+    )
+    .await
+}
+
+#[debug_handler]
+pub async fn edit_item_post(
+    State(ctx): State<AppContext>,
+    Path(id): Path<i32>,
+    Form(params): Form<AddItemPostParams>,
+) -> Result<Response> {
+    let Some(existing) = inventory_items::Entity::find_by_id(id).one(&ctx.db).await? else {
+        return Err(loco_rs::Error::NotFound);
+    };
+
+    let AddItemPostParams {
+        name,
+        serial_number,
+        checklist_id,
+        interval_id,
+        item_kind_id,
+        expiry,
+    } = params;
+
+    let expiry = if let Some(expiry) = expiry {
+        let naive_date = chrono::NaiveDate::parse_from_str(&expiry, "%Y-%m-%d")
+            .map_err(|e| loco_rs::Error::BadRequest(e.to_string()))?;
+        let naive_datetime = naive_date.and_hms_opt(0, 0, 0).ok_or_else(|| {
+            loco_rs::Error::BadRequest("expiry date is outside valid range".to_string())
+        })?;
+        Some(naive_datetime.and_utc().into())
+    } else {
+        None
+    };
+
+    let serial_number = serial_number.clean();
+    let mut item: inventory_items::ActiveModel = existing.into();
+    item.name = ActiveValue::set(name);
+    item.serial_number = ActiveValue::set(serial_number);
+    item.inventory_item_kind_id = ActiveValue::set(item_kind_id);
+    item.checklist_id = ActiveValue::set(checklist_id);
+    item.interval_id = ActiveValue::set(interval_id);
+    item.expiry = ActiveValue::set(expiry);
+    item.update(&ctx.db).await?;
+
+    format::redirect(&format!("/inventory/item/{id}"))
 }
 
 #[debug_handler]
@@ -273,8 +448,6 @@ pub async fn show_item_check(
 
     let results = ctx.get_results()?.values().cloned().collect::<Vec<_>>();
     let users = ctx.get_users()?.values().cloned().collect::<Vec<_>>();
-
-    tracing::warn!("users: {users:?}");
 
     format::render().view(
         &v,
@@ -305,6 +478,81 @@ pub struct PerformCheckPayload {
     pub steps: Vec<StepCheckPayload>,
 }
 
+impl PerformCheckPayload {
+    async fn validate(
+        self,
+        ctx: &AppContext,
+        checklist: &checklists::Model,
+    ) -> Result<ValidatedCheckPayload> {
+        if self.steps.is_empty() {
+            return Err(loco_rs::Error::BadRequest(
+                "At least one step result must be provided".to_string(),
+            ));
+        }
+
+        let results = ctx.get_results()?;
+        if !results.contains_key(&self.result_id) {
+            return Err(loco_rs::Error::BadRequest(
+                "Unknown checklist result".to_string(),
+            ));
+        }
+
+        let users = ctx.get_users()?;
+        if !users.contains_key(&self.checked_by) {
+            return Err(loco_rs::Error::BadRequest(
+                "Unknown user for checklist".to_string(),
+            ));
+        }
+
+        let steps_template = checklist_steps::Entity::find()
+            .filter(ChecklistStepsColumn::ChecklistId.eq(checklist.id))
+            .order_by_asc(ChecklistStepsColumn::Position)
+            .all(&ctx.db)
+            .await?;
+        if steps_template.is_empty() {
+            return Err(loco_rs::Error::BadRequest(
+                "Checklist contains no steps".to_string(),
+            ));
+        }
+
+        let step_lookup = steps_template
+            .iter()
+            .map(|step| (step.id, step))
+            .collect::<HashMap<_, _>>();
+
+        let notes = self.notes.clean();
+        let mut steps = Vec::new();
+
+        for step_payload in self.steps {
+            if !step_lookup.contains_key(&step_payload.checklist_step_id) {
+                return Err(loco_rs::Error::BadRequest(format!(
+                    "Invalid step id {} for checklist",
+                    step_payload.checklist_step_id
+                )));
+            }
+            if !results.contains_key(&step_payload.result_id) {
+                return Err(loco_rs::Error::BadRequest(format!(
+                    "Unknown result {} for step",
+                    step_payload.result_id
+                )));
+            }
+            steps.push(StepResultInput {
+                checklist_step_id: step_payload.checklist_step_id,
+                result_id: step_payload.result_id,
+                notes: step_payload.notes.clean(),
+            });
+        }
+
+        Ok(ValidatedCheckPayload {
+            steps_template,
+            steps,
+            notes,
+            checked_by: self.checked_by,
+            result_id: self.result_id,
+        })
+    }
+}
+
 #[debug_handler]
 pub async fn submit_item_check(
     State(ctx): State<AppContext>,
@@ -321,74 +569,7 @@ pub async fn submit_item_check(
         .cloned()
         .ok_or_else(|| loco_rs::Error::InternalServerError)?;
 
-    if payload.steps.is_empty() {
-        return Err(loco_rs::Error::BadRequest(
-            "At least one step result must be provided".to_string(),
-        ));
-    }
-
-    let results = ctx.get_results()?;
-    if !results.contains_key(&payload.result_id) {
-        return Err(loco_rs::Error::BadRequest(
-            "Unknown checklist result".to_string(),
-        ));
-    }
-
-    let users = ctx.get_users()?;
-    if !users.contains_key(&payload.checked_by) {
-        return Err(loco_rs::Error::BadRequest(
-            "Unknown user for checklist".to_string(),
-        ));
-    }
-
-    let steps_db = checklist_steps::Entity::find()
-        .filter(ChecklistStepsColumn::ChecklistId.eq(checklist.id))
-        .order_by_asc(ChecklistStepsColumn::Position)
-        .all(&ctx.db)
-        .await?;
-    let step_lookup: HashMap<_, _> = steps_db
-        .iter()
-        .map(|step| (step.id, step.clone()))
-        .collect();
-    if step_lookup.is_empty() {
-        return Err(loco_rs::Error::BadRequest(
-            "Checklist contains no steps".to_string(),
-        ));
-    }
-
-    let notes = payload
-        .notes
-        .as_deref()
-        .map(str::trim)
-        .filter(|n| !n.is_empty())
-        .map(str::to_string);
-
-    let mut validated_steps = Vec::new();
-    for step_payload in payload.steps.iter() {
-        if !step_lookup.contains_key(&step_payload.checklist_step_id) {
-            return Err(loco_rs::Error::BadRequest(format!(
-                "Invalid step id {} for checklist",
-                step_payload.checklist_step_id
-            )));
-        }
-        if !results.contains_key(&step_payload.result_id) {
-            return Err(loco_rs::Error::BadRequest(format!(
-                "Unknown result {} for step",
-                step_payload.result_id
-            )));
-        }
-        let notes = step_payload
-            .notes
-            .as_deref()
-            .map(str::trim)
-            .filter(|n| !n.is_empty())
-            .map(str::to_string);
-        validated_steps.push((
-            step_payload.checklist_step_id,
-            step_payload.result_id,
-            notes,
-        ));
-    }
+    let validated = payload.validate(&ctx, &checklist).await?;
 
     let trx = ctx.db.begin().await?;
 
@@ -401,7 +582,7 @@ pub async fn submit_item_check(
     .await?;
 
     let mut executed_step_map = HashMap::new();
-    for step in steps_db {
+    for step in validated.steps_template {
         let exec_step = executed_checklist_steps::ActiveModel {
             executed_checklist_id: ActiveValue::set(executed_checklist.id),
             position: ActiveValue::set(step.position),
@@ -417,11 +598,11 @@ pub async fn submit_item_check(
     let item_check = inventory_item_checks::ActiveModel {
         finished: ActiveValue::set(true),
         checked_at: ActiveValue::set(Utc::now().into()),
-        notes: ActiveValue::set(notes),
+        notes: ActiveValue::set(validated.notes.clone()),
         inventory_item_id: ActiveValue::set(item.id),
         executed_checklist_id: ActiveValue::set(executed_checklist.id),
-        checked_by: ActiveValue::set(payload.checked_by),
-        result_id: ActiveValue::set(payload.result_id),
+        checked_by: ActiveValue::set(validated.checked_by),
+        result_id: ActiveValue::set(validated.result_id),
         ..Default::default()
     }
     .insert(&trx)
@@ -431,15 +612,15 @@ pub async fn submit_item_check(
     item_update.last_checked_at = ActiveValue::set(Some(item_check.checked_at));
     item_update.update(&trx).await?;
 
-    for (step_id, result_id, step_notes) in validated_steps {
-        let Some(executed_step_id) = executed_step_map.get(&step_id) else {
+    for step in validated.steps {
+        let Some(executed_step_id) = executed_step_map.get(&step.checklist_step_id) else {
             continue;
         };
         inventory_item_check_steps::ActiveModel {
             inventory_item_check_id: ActiveValue::set(item_check.id),
             executed_checklist_step_id: ActiveValue::set(*executed_step_id),
-            result_id: ActiveValue::set(result_id),
-            notes: ActiveValue::set(step_notes),
+            result_id: ActiveValue::set(step.result_id),
+            notes: ActiveValue::set(step.notes.clone()),
             ..Default::default()
         }
         .insert(&trx)
@@ -557,8 +738,10 @@ pub fn routes() -> Routes {
         .add("/add", get(add_item))
         .add("/add", post(add_item_post))
         .add("/item/{id}", get(show_item_details))
+        .add("/item/{id}/edit", get(edit_item))
         .add("/item/{id}/check", get(show_item_check))
         .add("/item/{id}/check", post(submit_item_check))
+        .add("/item/{id}/edit", post(edit_item_post))
         .add("/item/{id}", delete(remove_item))
         .add("/add_item_kind", get(add_item_kind_get))
         .add("/add_item_kind", post(add_item_kind_post))

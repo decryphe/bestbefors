@@ -1,5 +1,5 @@
+pub use super::_entities::executed_checklist_steps::{ActiveModel, Entity, Model};
 use sea_orm::entity::prelude::*;
-pub use super::_entities::executed_checklist_steps::{ActiveModel, Model, Entity};
 pub type ExecutedChecklistSteps = Entity;
 
 #[async_trait::async_trait]

@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="en">
     {% include "inc_head.html" %} {% include "inc_navbar.html" %}
-    <body class="container" onload="calculateExpiry()">
-        <h1>Add Inventory Item</h1>
-        <form method="POST">
+    <body class="container">
+        <h1>{{ form_title | default(value="Add Inventory Item") }}</h1>
+        <form method="POST" action="{{ form_action | default(value='/inventory/add') }}">
             <div class="mb-3">
                 <label for="itemName" class="form-label"> Item Name </label>
                 <input
@@ -11,6 +11,7 @@
                     class="form-control"
                     id="itemName"
                     name="name"
+                    value="{% if item %}{{ item.name }}{% endif %}"
                 />
             </div>
             <div class="mb-3">
@@ -22,12 +23,15 @@
                     class="form-control"
                     id="itemSerial"
                     name="serial_number"
+                    value="{% if item and item.serial_number %}{{ item.serial_number }}{% endif %}"
                 />
             </div>
 
             <script>
                 const item_kinds = {{ item_kinds | json_encode() | safe }};
                 const expiries = {{ expiries | json_encode() | safe }};
+                const isEdit = {{ is_edit | default(value=false) | json_encode() | safe }};
+                const existingItem = {{ item | json_encode() | safe }};
                 function calculateExpiry() {
                     let expiry = expiries.find((e) => e.id == document.getElementById("itemExpirySelect").value);
                     let utcNow = new Date();
@@ -56,6 +60,24 @@
                     document.getElementById("itemExpirySelect").value = item_kind.default_expiry_id;
                     calculateExpiry();
                 }
+                function initForm() {
+                    if (!isEdit) {
+                        calculateExpiry();
+                        return;
+                    }
+                    const expiryInput = document.getElementById("itemExpiry");
+                    if (!expiryInput) {
+                        return;
+                    }
+                    if (existingItem && existingItem.expiry) {
+                        const initialDate = new Date(existingItem.expiry);
+                        expiryInput.value = initialDate.toISOString().substring(0, 10);
+                    } else {
+                        expiryInput.value = "";
+                    }
+                    expiryInput.removeAttribute("disabled");
+                }
+                window.addEventListener("DOMContentLoaded", initForm);
             </script>
             <div class="mb-3">
                 <label for="itemKind" class="form-label"> Item Kind </label>
@@ -65,15 +87,18 @@
                     name="item_kind_id"
                     onchange="onChangeItemKind(this)"
                 >
-                    {% for item_kind in item_kinds %} {% if loop.first %}
-                    <option value="{{ item_kind.id }}" selected>
+                    {% for item_kind in item_kinds %}
+                    <option
+                        value="{{ item_kind.id }}"
+                        {% if item and item.inventory_item_kind_id == item_kind.id %}
+                        selected
+                        {% elif not item and loop.first %}
+                        selected
+                        {% endif %}
+                    >
                         {{ item_kind.name }}
                     </option>
-                    {% else %}
-                    <option value="{{ item_kind.id }}">
-                        {{ item_kind.name }}
-                    </option>
-                    {% endif %} {% endfor %}
+                    {% endfor %}
                 </select>
             </div>
 
@@ -86,15 +111,18 @@
                     id="itemChecklist"
                     name="checklist_id"
                 >
-                    {% for checklist in checklists %} {% if loop.first %}
-                    <option value="{{ checklist.id }}" selected>
+                    {% for checklist in checklists %}
+                    <option
+                        value="{{ checklist.id }}"
+                        {% if item and item.checklist_id == checklist.id %}
+                        selected
+                        {% elif not item and loop.first %}
+                        selected
+                        {% endif %}
+                    >
                         {{ checklist.name }}
                     </option>
-                    {% else %}
-                    <option value="{{ checklist.id }}">
-                        {{ checklist.name }}
-                    </option>
-                    {% endif %} {% endfor %}
+                    {% endfor %}
                 </select>
             </div>
 
@@ -107,15 +135,18 @@
                     id="itemCheckInterval"
                     name="interval_id"
                 >
-                    {% for interval in intervals %} {% if loop.first %}
-                    <option value="{{ interval.id }}" selected>
+                    {% for interval in intervals %}
+                    <option
+                        value="{{ interval.id }}"
+                        {% if item and item.interval_id == interval.id %}
+                        selected
+                        {% elif not item and loop.first %}
+                        selected
+                        {% endif %}
+                    >
                         {{ t(key=interval.code, lang="de-DE") }}
                     </option>
-                    {% else %}
-                    <option value="{{ interval.id }}">
-                        {{ t(key=interval.code, lang="de-DE") }}
-                    </option>
-                    {% endif %} {% endfor %}
+                    {% endfor %}
                 </select>
             </div>
 
@@ -128,15 +159,16 @@
                     id="itemExpirySelect"
                     onchange="calculateExpiry()"
                 >
-                    {% for expiry in expiries %} {% if loop.first %}
-                    <option value="{{ expiry.id }}" selected>
+                    {% for expiry in expiries %}
+                    <option
+                        value="{{ expiry.id }}"
+                        {% if not item and loop.first %}
+                        selected
+                        {% endif %}
+                    >
                         {{ t(key=expiry.code, lang="de-DE") }}
                     </option>
-                    {% else %}
-                    <option value="{{ expiry.id }}">
-                        {{ t(key=expiry.code, lang="de-DE") }}
-                    </option>
-                    {% endif %} {% endfor %}
+                    {% endfor %}
                 </select>
                 <input
                     class="form-control"
@@ -150,7 +182,9 @@
                 />
             </div>
 
-            <button type="submit" class="btn btn-primary">Submit</button>
+            <button type="submit" class="btn btn-primary">
+                {{ submit_label | default(value="Submit") }}
+            </button>
         </form>
         <div class="row">
             <div class="col"></div>

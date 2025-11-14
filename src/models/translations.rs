@@ -1,5 +1,5 @@
+pub use super::_entities::translations::{ActiveModel, Entity, Model};
 use sea_orm::entity::prelude::*;
-pub use super::_entities::translations::{ActiveModel, Model, Entity};
 pub type Translations = Entity;
 
 #[async_trait::async_trait]

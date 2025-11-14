@@ -21,6 +21,7 @@ impl ActiveModelBehavior for ActiveModel {
 
 // implement your read-oriented logic here
 impl Model {
+    #[must_use]
     pub fn next_interval_expiry(
         &self,
         created_at: &DateTimeWithTimeZone,
@@ -41,7 +42,7 @@ impl Model {
                 }
             }
             "months" => {
-                let months = chrono::Months::new(self.sqlite_num_of_modifier.unsigned_abs().into());
+                let months = chrono::Months::new(self.sqlite_num_of_modifier.unsigned_abs());
                 if self.sqlite_num_of_modifier > 0 {
                     starting_point.checked_add_months(months)
                 } else {

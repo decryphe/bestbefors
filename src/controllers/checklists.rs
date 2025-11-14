@@ -5,7 +5,10 @@
 use loco_rs::prelude::*;
 use serde::Deserialize;
 
-use crate::models::{checklist_steps, checklists, inventory_items};
+use crate::{
+    exts::StringExt,
+    models::{checklist_steps, checklists, inventory_items},
+};
 
 #[derive(serde::Serialize)]
 struct ChecklistWithSteps {
@@ -59,25 +62,23 @@ pub async fn add_post(
     State(ctx): State<AppContext>,
     Json(params): Json<AddChecklistParams>,
 ) -> Result<Response> {
-    tracing::warn!("received post: {params:?}");
-    let name = params.name.trim();
-    if name.is_empty() {
-        return Err(loco_rs::Error::BadRequest(
-            "Checklist name must not be empty".to_string(),
-        ));
-    }
-    let description = Some(params.description.trim())
-        .filter(|s| s.is_empty())
-        .map(str::to_string);
+    let AddChecklistParams {
+        name,
+        description,
+        steps,
+    } = params;
 
-    let mut prepared_steps: Vec<_> = params
-        .steps
+    let name = name.clean().ok_or_else(|| {
+        loco_rs::Error::BadRequest("Checklist name must not be empty".to_string())
+    })?;
+    let description = description.clean();
+
+    let mut prepared_steps: Vec<_> = steps
         .into_iter()
         .map(|step| {
-            let description = Some(step.description.trim())
-                .filter(|s| s.is_empty())
-                .map(str::to_string);
-            (step.position, step.name.trim().to_owned(), description)
+            let step_name = step.name.clean().unwrap_or_default();
+            let step_description = step.description.clean();
+            (step.position, step_name, step_description)
         })
         .collect();
 
@@ -96,7 +97,7 @@ pub async fn add_post(
     prepared_steps.sort_by_key(|(position, _, _)| *position);
 
     let checklist = checklists::ActiveModel {
-        name: ActiveValue::set(name.to_string()),
+        name: ActiveValue::set(name),
         description: ActiveValue::set(description),
         ..Default::default()
     }

@@ -1,4 +1,4 @@
-<nav class="navbar bg-body-tertiary">
+<nav class="navbar bg-body-tertiary mb-3">
     <div class="container-fluid">
         <a class="navbar-brand" href="/">
             <img src="/static/logo.svg" width="64" alt="bestbefoRS" />
@@ -7,7 +7,7 @@
         <ul class="nav me-auto mb-2 mb-lg-0">
             <li class="nav-item">
                 <a class="nav-link active" aria-current="page" href="/">
-                    Home
+                    Dashboard
                 </a>
             </li>
             <li class="nav-item">
@@ -19,6 +19,21 @@
         </ul>
 
         <div class="d-flex align-items-center gap-3">
+            <form
+                class="d-flex align-items-center gap-2"
+                role="search"
+                method="get"
+                action="/inventory/list"
+            >
+                <input
+                    class="form-control form-control-sm"
+                    type="search"
+                    placeholder="Search inventory"
+                    name="q"
+                    value="{{ inventory_search | default(value='') }}"
+                    aria-label="Search inventory items"
+                />
+            </form>
             <a class="nav-item">
                 <img src="/static/flags/gb.svg" width="32" />
             </a>

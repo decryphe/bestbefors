@@ -1,48 +1,86 @@
 <!doctype html>
 <html lang="en">
-    {% include "inc_head.html" %}
-    {% include "inc_navbar.html" %}
+    {% include "inc_head.html" %} {% include "inc_navbar.html" %}
     <body class="container">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
                 <h1 class="h3 mb-1">{{ item.name }}</h1>
                 <p class="text-muted mb-0">
                     Kind:
-                    <strong>{{ item_kind_name | default(value="Unknown kind") }}</strong>
+                    <strong
+                        >{{ item_kind_name | default(value="Unknown kind")
+                        }}</strong
+                    >
                     • Checklist:
-                    <strong>{{ checklist_name | default(value="Unknown checklist") }}</strong>
+                    <strong
+                        >{{ checklist_name | default(value="Unknown checklist")
+                        }}</strong
+                    >
                 </p>
             </div>
             <div class="btn-group">
-                <a class="btn btn-primary" href="/inventory/item/{{ item.id }}/check">Check Item</a>
-                <a class="btn btn-outline-secondary" href="/inventory/list">Back to list</a>
+                <a
+                    class="btn btn-primary"
+                    href="/inventory/item/{{ item.id }}/check"
+                    >Check Item</a
+                >
+                <a
+                    class="btn btn-outline-primary"
+                    href="/inventory/item/{{ item.id }}/edit"
+                    >Edit Item</a
+                >
+                <a class="btn btn-outline-secondary" href="/inventory/list"
+                    >Back to list</a
+                >
             </div>
         </div>
 
         <div class="card mb-4">
             <div class="card-body row">
                 <div class="col-md-4">
-                    <div><strong>Serial:</strong> {{ item.serial_number | default(value="-") }}</div>
-                    <div><strong>Interval ID:</strong> {{ item.interval_id }}</div>
+                    <div>
+                        <strong>Serial:</strong> {{ item.serial_number |
+                        default(value="-") }}
+                    </div>
+                    <div>
+                        <strong>Interval:</strong>
+                        {% if interval_name %}
+                        {{ t(key=interval_name, lang="en-US") }}
+                        {% else %}
+                        {{ t(key="interval.unknown", lang="en-US") }}
+                        {% endif %}
+                    </div>
                 </div>
                 <div class="col-md-4">
                     <div>
                         <strong>Created:</strong>
-                        <span data-utc="{{ item.created_at }}">{{ item.created_at }}</span>
+                        <span data-utc="{{ item.created_at }}"
+                            >{{ item.created_at }}</span
+                        >
                     </div>
                     <div>
                         <strong>Updated:</strong>
-                        <span data-utc="{{ item.updated_at }}">{{ item.updated_at }}</span>
+                        <span data-utc="{{ item.updated_at }}"
+                            >{{ item.updated_at }}</span
+                        >
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div>
                         <strong>Last Checked:</strong>
-                        {{ item.last_checked_at | default(value="Never") }}
+                        <span
+                            data-utc="{{ item.last_checked_at | default(value='Never') }}"
+                        >
+                            {{ item.last_checked_at | default(value="Never") }}
+                        </span>
                     </div>
                     <div>
                         <strong>Expiry:</strong>
-                        {{ item.expiry | default(value="Unspecified") }}
+                        <span
+                            data-utc="{{ item.expiry | default(value='Unspecified') }}"
+                        >
+                            {{ item.expiry | default(value="Unspecified") }}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -55,15 +93,19 @@
         <div class="d-flex flex-column gap-3">
             {% for check in checks %}
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div
+                    class="card-header d-flex justify-content-between align-items-center"
+                >
                     <div>
                         <strong>
-                            {{ check.check.checked_at | date(format="%Y-%m-%d %H:%M") }}
+                            {{ check.check.checked_at | date(format="%Y-%m-%d
+                            %H:%M") }}
                         </strong>
-                        — {{ check.result_code | default(value="No result") }}
+                        — {{ t(key=check.result_code, lang="en-US") }}
                     </div>
                     <small class="text-muted">
-                        by {{ check.checked_by | default(value="Unknown user") }}
+                        by {{ check.checked_by | default(value="Unknown user")
+                        }}
                     </small>
                 </div>
                 <div class="card-body">
@@ -85,13 +127,21 @@
                                 <tr>
                                     <td>{{ step.position }}</td>
                                     <td>
-                                        <div class="fw-semibold">{{ step.name }}</div>
+                                        <div class="fw-semibold">
+                                            {{ step.name }}
+                                        </div>
                                         <div class="text-muted small">
-                                            {{ step.description | default(value="") }}
+                                            {{ step.description |
+                                            default(value="") }}
                                         </div>
                                     </td>
-                                    <td>{{ step.result_code | default(value="-") }}</td>
-                                    <td>{{ step.notes | default(value="-") }}</td>
+                                    <td>
+                                        {{ t(key=step.result_code, lang="en-US")
+                                        }}
+                                    </td>
+                                    <td>
+                                        {{ step.notes | default(value="-") }}
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

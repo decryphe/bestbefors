@@ -1,5 +1,5 @@
+pub use super::_entities::checklists::{ActiveModel, Entity, Model};
 use sea_orm::entity::prelude::*;
-pub use super::_entities::checklists::{ActiveModel, Model, Entity};
 pub type Checklists = Entity;
 
 #[async_trait::async_trait]

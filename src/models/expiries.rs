@@ -1,5 +1,5 @@
+pub use super::_entities::expiries::{ActiveModel, Entity, Model};
 use sea_orm::entity::prelude::*;
-pub use super::_entities::expiries::{ActiveModel, Model, Entity};
 pub type Expiries = Entity;
 
 #[async_trait::async_trait]

@@ -18,6 +18,9 @@ The source code is provided under MIT or Apache 2.0 licenses. Use as you please.
 # Install dependencies and compile
 cargo build
 
+# Seed the database with some useful starting data, e.g. basic expiries or intervals
+cargo loco db seed --reset
+
 # Run migrations + start dev server (auto-migrates SQLite)
 cargo loco start
 ```

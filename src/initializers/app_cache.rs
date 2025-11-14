@@ -1,4 +1,4 @@
-use crate::models::*;
+use crate::models::{checklists, expiries, intervals, inventory_item_kinds, results, users};
 use std::collections::BTreeMap;
 
 pub struct AppCacheInitializer;

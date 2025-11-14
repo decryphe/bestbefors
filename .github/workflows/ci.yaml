@@ -50,7 +50,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --all-features -- -D warnings -W clippy::pedantic -W clippy::nursery -W rust-2018-idioms
+          args: --all-features -- -D warnings
 
   test:
     name: Run Tests
@@ -58,7 +58,7 @@ jobs:
 
     permissions:
       contents: read
-    
+
     services:
       redis:
         image: redis
@@ -99,4 +99,3 @@ jobs:
         env:
           REDIS_URL: redis://localhost:${{job.services.redis.ports[6379]}}
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres_test
-          

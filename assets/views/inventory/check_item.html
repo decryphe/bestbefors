@@ -46,7 +46,9 @@
                         <label class="form-label" for="overall-result">Overall Result</label>
                         <select class="form-select" id="overall-result">
                             {% for result in results %}
-                            <option value="{{ result.id }}">{{ result.code }}</option>
+                            <option value="{{ result.id }}">
+                                {{ t(key=result.code, lang="en-US") }}
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
@@ -85,7 +87,9 @@
                                 <td>
                                     <select class="form-select step-result">
                                         {% for result in results %}
-                                        <option value="{{ result.id }}">{{ result.code }}</option>
+                                        <option value="{{ result.id }}">
+                                            {{ t(key=result.code, lang="en-US") }}
+                                        </option>
                                         {% endfor %}
                                     </select>
                                 </td>

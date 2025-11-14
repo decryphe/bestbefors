@@ -1,5 +1,5 @@
+pub use super::_entities::results::{ActiveModel, Entity, Model};
 use sea_orm::entity::prelude::*;
-pub use super::_entities::results::{ActiveModel, Model, Entity};
 pub type Results = Entity;
 
 #[async_trait::async_trait]

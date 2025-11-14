@@ -11,7 +11,6 @@
                             <table class="table table-striped mb-0">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
                                         <th>Name</th>
                                         <th>Serial</th>
                                         <th>Created</th>
@@ -23,10 +22,17 @@
                                 </thead>
                                 <tbody>
                                     {% for item in items %}
-                                    <tr>
-                                        <td>{{ item.item.id }}</td>
+                                    {% set row_class = "" %}
+                                    {% if item.urgency == "CRITICAL" %}
+                                    {% set row_class = "table-danger" %}
+                                    {% elif item.urgency == "WARNING" %}
+                                    {% set row_class = "table-warning" %}
+                                    {% endif %}
+                                    <tr{% if row_class %} class="{{ row_class }}"{% endif %}>
                                         <td>{{ item.item.name }}</td>
-                                        <td>{{ item.item.serial_number }}</td>
+                                        <td>
+                                            {{ item.item.serial_number | default(value="-") }}
+                                        </td>
                                         <td
                                             data-utc="{{ item.item.created_at }}"
                                         >
@@ -45,19 +51,21 @@
                                         <td data-utc="{{ item.next_expiry }}">
                                             {{ item.next_expiry }}
                                         </td>
-                                        <td class="text-end d-flex gap-2 justify-content-end">
-                                            <a
-                                                class="btn btn-sm btn-outline-secondary"
-                                                href="/inventory/item/{{ item.item.id }}"
-                                            >
-                                                Details
-                                            </a>
-                                            <a
-                                                class="btn btn-sm btn-primary"
-                                                href="/inventory/item/{{ item.item.id }}/check"
-                                            >
-                                                Check
-                                            </a>
+                                        <td class="text-end">
+                                            <div class="btn-group">
+                                                <a
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    href="/inventory/item/{{ item.item.id }}"
+                                                >
+                                                    Details
+                                                </a>
+                                                <a
+                                                    class="btn btn-sm btn-primary"
+                                                    href="/inventory/item/{{ item.item.id }}/check"
+                                                >
+                                                    Check
+                                                </a>
+                                            </div>
                                         </td>
                                     </tr>
                                     {% endfor %}

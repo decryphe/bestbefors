@@ -8,6 +8,11 @@
                 >Add Inventory Item</a
             >
         </div>
+        {% if inventory_search %}
+        <p class="text-muted fst-italic">
+            Showing results for "{{ inventory_search }}"
+        </p>
+        {% endif %}
         <hr />
         <div class="row">
             <div class="col">
@@ -18,11 +23,11 @@
                                 <thead>
                                     <tr>
                                         <th>ID</th>
-                                        <th>Created At</th>
-                                        <th>Updated At</th>
                                         <th>Name</th>
+                                        <th>Kind</th>
                                         <th>Serial</th>
                                         <th>Last Checked</th>
+                                        <th>Expiry</th>
                                         <th class="text-end">Actions</th>
                                     </tr>
                                 </thead>
@@ -30,21 +35,19 @@
                                     {% for item in inventory %}
                                     <tr>
                                         <td>{{ item.id }}</td>
-                                        <td data-utc="{{ item.created_at }}">
-                                            {{ item.created_at }}
-                                        </td>
-                                        <td data-utc="{{ item.updated_at }}">
-                                            {{ item.updated_at }}
-                                        </td>
                                         <td>{{ item.name }}</td>
+                                        <td>
+                                            {{ item.kind_name | default(value="-") }}
+                                        </td>
                                         <td>
                                             {{ item.serial | default(value="-")
                                             }}
                                         </td>
-                                        <td
-                                            data-utc="{{ item.last_checked_at | default(value='-')}}"
-                                        >
-                                            {{ item.last_checked_at }}
+                                        <td data-utc="{{ item.last_checked_at | default(value='-')}}">
+                                            {{ item.last_checked_at | default(value='-') }}
+                                        </td>
+                                        <td data-utc="{{ item.expiry | default(value='-')}}">
+                                            {{ item.expiry | default(value='-') }}
                                         </td>
                                         <td class="text-end">
                                             <div class="btn-group">

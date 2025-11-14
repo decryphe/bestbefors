@@ -1,5 +1,5 @@
+pub use super::_entities::inventory_item_check_steps::{ActiveModel, Entity, Model};
 use sea_orm::entity::prelude::*;
-pub use super::_entities::inventory_item_check_steps::{ActiveModel, Model, Entity};
 pub type InventoryItemCheckSteps = Entity;
 
 #[async_trait::async_trait]

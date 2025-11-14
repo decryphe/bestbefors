@@ -1,5 +1,5 @@
+pub use super::_entities::inventory_item_kinds::{ActiveModel, Entity, Model};
 use sea_orm::entity::prelude::*;
-pub use super::_entities::inventory_item_kinds::{ActiveModel, Model, Entity};
 pub type InventoryItemKinds = Entity;
 
 #[async_trait::async_trait]

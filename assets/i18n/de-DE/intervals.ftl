@@ -3,3 +3,4 @@ INTERVAL_QUARTERLY = Vierteljährlich
 INTERVAL_TWICEYEARLY = Halbjährlich
 INTERVAL_YEARLY = Jährlich
 INTERVAL_BIYEARLY = Zweijährlich
+INTERVAL_UNKNOWN = Unbekanntes Intervall

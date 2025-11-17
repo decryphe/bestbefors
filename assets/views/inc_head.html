@@ -6,8 +6,9 @@
         crossorigin="anonymous"
     />
     <script>
+        const INVALID_DATE_LABEL = "{{ t(key='gui-common-invalid_date', lang=lang_code) }}";
         Date.prototype.toISODate = function () {
-            if (isNaN(this.getTime())) return "Invalid Date";
+            if (isNaN(this.getTime())) return INVALID_DATE_LABEL;
             return (
                 this.getFullYear().toString().padStart(4, "0") +
                 "-" +
@@ -17,7 +18,7 @@
             );
         };
         Date.prototype.toISOTime = function () {
-            if (isNaN(this.getTime())) return "Invalid Date";
+            if (isNaN(this.getTime())) return INVALID_DATE_LABEL;
             return (
                 this.getHours().toString().padStart(2, "0") +
                 ":" +
@@ -27,7 +28,7 @@
             );
         };
         Date.prototype.toISODateTime = function () {
-            if (isNaN(this.getTime())) return "Invalid Date";
+            if (isNaN(this.getTime())) return INVALID_DATE_LABEL;
             return this.toISODate() + " " + this.toISOTime();
         };
 

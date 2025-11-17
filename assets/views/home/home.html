@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="en">
+{% set lang_code = current_lang | default(value="en-US") %}
+<html lang="{{ lang_code }}">
     {% include "inc_head.html" %} {% include "inc_navbar.html" %}
     <body class="container">
-        <h1>Dashboard</h1>
+        <h1>{{ t(key="gui-nav-dashboard", lang=lang_code) }}</h1>
         <div class="row">
             <div class="col">
                 <div class="card">
@@ -11,13 +12,13 @@
                             <table class="table table-striped mb-0">
                                 <thead>
                                     <tr>
-                                        <th>Name</th>
-                                        <th>Serial</th>
-                                        <th>Created</th>
-                                        <th>Checklist</th>
-                                        <th>Last checked</th>
-                                        <th>Next expiry</th>
-                                        <th class="text-end">Actions</th>
+                                        <th>{{ t(key="gui-inventory-list-name", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-list-serial", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-detail-created", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-detail-checklist", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-list-last_checked", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-home-next_expiry", lang=lang_code) }}</th>
+                                        <th class="text-end">{{ t(key="gui-common-actions", lang=lang_code) }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -31,7 +32,7 @@
                                     <tr{% if row_class %} class="{{ row_class }}"{% endif %}>
                                         <td>{{ item.item.name }}</td>
                                         <td>
-                                            {{ item.item.serial_number | default(value="-") }}
+                                            {{ item.item.serial_number | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
                                         </td>
                                         <td
                                             data-utc="{{ item.item.created_at }}"
@@ -45,7 +46,9 @@
                                                 {{ item.item.last_checked_at }}
                                             </span>
                                             {% else %}
-                                            <span class="text-muted">Never</span>
+                                            <span class="text-muted">
+                                                {{ t(key="gui-common-never", lang=lang_code) }}
+                                            </span>
                                             {% endif %}
                                         </td>
                                         <td data-utc="{{ item.next_expiry }}">
@@ -57,13 +60,13 @@
                                                     class="btn btn-sm btn-outline-secondary"
                                                     href="/inventory/item/{{ item.item.id }}"
                                                 >
-                                                    Details
+                                                    {{ t(key="gui-common-details", lang=lang_code) }}
                                                 </a>
                                                 <a
                                                     class="btn btn-sm btn-primary"
                                                     href="/inventory/item/{{ item.item.id }}/check"
                                                 >
-                                                    Check
+                                                    {{ t(key="gui-inventory-common-check", lang=lang_code) }}
                                                 </a>
                                             </div>
                                         </td>

@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="en">
+{% set lang_code = current_lang | default(value="en-US") %}
+<html lang="{{ lang_code }}">
     {% include "inc_head.html" %} {% include "inc_navbar.html" %}
     <body class="container">
-        <h1>List of Expiry Presets</h1>
+        <h1>{{ t(key="gui-expiries-title", lang=lang_code) }}</h1>
         <div class="row">
             <div class="col">
                 <div class="card">
@@ -11,13 +12,13 @@
                             <table class="table table-striped mb-0">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
-                                        <th>Created At</th>
-                                        <th>Updated At</th>
-                                        <th>Code</th>
-                                        <th>Modifier</th>
-                                        <th>Count</th>
-                                        <th>Translated</th>
+                                        <th>{{ t(key="gui-inventory-list-id", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-item_kind-created", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-item_kind-updated", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-expiries-code", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-expiries-modifier", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-expiries-count", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-expiries-translation", lang=lang_code) }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -36,8 +37,7 @@
                                             {{ expiry.sqlite_num_of_modifier }}
                                         </td>
                                         <td>
-                                            {{ t(key=expiry.code, lang="de-DE")
-                                            }}
+                                            {{ t(key=expiry.code, lang=lang_code) }}
                                         </td>
                                     </tr>
                                     {% endfor %}

@@ -1,36 +1,47 @@
 <!doctype html>
-<html lang="en">
+{% set lang_code = current_lang | default(value="en-US") %}
+{% set is_edit_flag = is_edit | default(value=false) %}
+{% if is_edit_flag %}
+    {% set page_title = t(key="gui-inventory-form-title_edit", lang=lang_code) %}
+    {% set submit_label = t(key="gui-inventory-form-submit_edit", lang=lang_code) %}
+{% else %}
+    {% set page_title = t(key="gui-inventory-form-title_add", lang=lang_code) %}
+    {% set submit_label = t(key="gui-inventory-form-submit_add", lang=lang_code) %}
+{% endif %}
+<html lang="{{ lang_code }}">
     {% include "inc_head.html" %} {% include "inc_navbar.html" %}
     <body class="container">
-        <h1>{{ form_title | default(value="Add Inventory Item") }}</h1>
+        <h1>{{ page_title }}</h1>
         <form method="POST" action="{{ form_action | default(value='/inventory/add') }}">
             <div class="mb-3">
-                <label for="itemName" class="form-label"> Item Name </label>
+                <label for="itemName" class="form-label">
+                    {{ t(key="gui-inventory-form-name_label", lang=lang_code) }}
+                </label>
                 <input
                     type="text"
                     class="form-control"
                     id="itemName"
                     name="name"
-                    value="{% if item %}{{ item.name }}{% endif %}"
+                    value="{% if is_edit_flag %}{{ item.name }}{% endif %}"
                 />
             </div>
             <div class="mb-3">
                 <label for="itemSerial" class="form-label">
-                    Serial Number
+                    {{ t(key="gui-inventory-form-serial_label", lang=lang_code) }}
                 </label>
                 <input
                     type="text"
                     class="form-control"
                     id="itemSerial"
                     name="serial_number"
-                    value="{% if item and item.serial_number %}{{ item.serial_number }}{% endif %}"
+                    value="{% if is_edit_flag and item.serial_number %}{{ item.serial_number }}{% endif %}"
                 />
             </div>
 
             <script>
                 const item_kinds = {{ item_kinds | json_encode() | safe }};
                 const expiries = {{ expiries | json_encode() | safe }};
-                const isEdit = {{ is_edit | default(value=false) | json_encode() | safe }};
+                const isEdit = {{ is_edit_flag | json_encode() | safe }};
                 const existingItem = {{ item | json_encode() | safe }};
                 function calculateExpiry() {
                     let expiry = expiries.find((e) => e.id == document.getElementById("itemExpirySelect").value);
@@ -80,7 +91,9 @@
                 window.addEventListener("DOMContentLoaded", initForm);
             </script>
             <div class="mb-3">
-                <label for="itemKind" class="form-label"> Item Kind </label>
+                <label for="itemKind" class="form-label">
+                    {{ t(key="gui-inventory-form-kind_label", lang=lang_code) }}
+                </label>
                 <select
                     class="form-select"
                     id="itemKind"
@@ -90,9 +103,9 @@
                     {% for item_kind in item_kinds %}
                     <option
                         value="{{ item_kind.id }}"
-                        {% if item and item.inventory_item_kind_id == item_kind.id %}
+                        {% if is_edit_flag and item.inventory_item_kind_id == item_kind.id %}
                         selected
-                        {% elif not item and loop.first %}
+                        {% elif not is_edit_flag and loop.first %}
                         selected
                         {% endif %}
                     >
@@ -104,7 +117,7 @@
 
             <div class="mb-3">
                 <label for="itemChecklist" class="form-label">
-                    Checklist
+                    {{ t(key="gui-inventory-form-checklist_label", lang=lang_code) }}
                 </label>
                 <select
                     class="form-select"
@@ -114,9 +127,9 @@
                     {% for checklist in checklists %}
                     <option
                         value="{{ checklist.id }}"
-                        {% if item and item.checklist_id == checklist.id %}
+                        {% if is_edit_flag and item.checklist_id == checklist.id %}
                         selected
-                        {% elif not item and loop.first %}
+                        {% elif not is_edit_flag and loop.first %}
                         selected
                         {% endif %}
                     >
@@ -128,7 +141,7 @@
 
             <div class="mb-3">
                 <label for="itemCheckInterval" class="form-label">
-                    Check Interval
+                    {{ t(key="gui-inventory-form-interval_label", lang=lang_code) }}
                 </label>
                 <select
                     class="form-select"
@@ -138,13 +151,13 @@
                     {% for interval in intervals %}
                     <option
                         value="{{ interval.id }}"
-                        {% if item and item.interval_id == interval.id %}
+                        {% if is_edit_flag and item.interval_id == interval.id %}
                         selected
-                        {% elif not item and loop.first %}
+                        {% elif not is_edit_flag and loop.first %}
                         selected
                         {% endif %}
                     >
-                        {{ t(key=interval.code, lang="de-DE") }}
+                        {{ t(key=interval.code, lang=lang_code) }}
                     </option>
                     {% endfor %}
                 </select>
@@ -152,7 +165,7 @@
 
             <div class="mb-3">
                 <label for="itemExpirySelect" class="form-label">
-                    Expiry
+                    {{ t(key="gui-inventory-form-expiry_label", lang=lang_code) }}
                 </label>
                 <select
                     class="form-select mb-3"
@@ -162,11 +175,11 @@
                     {% for expiry in expiries %}
                     <option
                         value="{{ expiry.id }}"
-                        {% if not item and loop.first %}
+                        {% if not is_edit_flag and loop.first %}
                         selected
                         {% endif %}
                     >
-                        {{ t(key=expiry.code, lang="de-DE") }}
+                        {{ t(key=expiry.code, lang=lang_code) }}
                     </option>
                     {% endfor %}
                 </select>
@@ -182,9 +195,7 @@
                 />
             </div>
 
-            <button type="submit" class="btn btn-primary">
-                {{ submit_label | default(value="Submit") }}
-            </button>
+            <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
         </form>
         <div class="row">
             <div class="col"></div>

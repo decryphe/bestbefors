@@ -1,19 +1,21 @@
 <!doctype html>
-<html lang="en">
+{% set lang_code = current_lang | default(value="en-US") %}
+<html lang="{{ lang_code }}">
     {% include "inc_head.html" %} {% include "inc_navbar.html" %}
     <body class="container">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
                 <h1 class="h3 mb-1">{{ item.name }}</h1>
                 <p class="text-muted mb-0">
-                    Kind:
+                    {{ t(key="gui-inventory-detail-kind", lang=lang_code) }}
                     <strong
-                        >{{ item_kind_name | default(value="Unknown kind")
+                        >{{ item_kind_name | default(value=t(key="gui-inventory-detail-kind_unknown", lang=lang_code))
                         }}</strong
                     >
-                    • Checklist:
+                    •
+                    {{ t(key="gui-inventory-detail-checklist", lang=lang_code) }}
                     <strong
-                        >{{ checklist_name | default(value="Unknown checklist")
+                        >{{ checklist_name | default(value=t(key="gui-inventory-detail-checklist_unknown", lang=lang_code))
                         }}</strong
                     >
                 </p>
@@ -22,15 +24,15 @@
                 <a
                     class="btn btn-primary"
                     href="/inventory/item/{{ item.id }}/check"
-                    >Check Item</a
+                    >{{ t(key="gui-inventory-detail-check_item", lang=lang_code) }}</a
                 >
                 <a
                     class="btn btn-outline-primary"
                     href="/inventory/item/{{ item.id }}/edit"
-                    >Edit Item</a
+                    >{{ t(key="gui-inventory-detail-edit_item", lang=lang_code) }}</a
                 >
                 <a class="btn btn-outline-secondary" href="/inventory/list"
-                    >Back to list</a
+                    >{{ t(key="gui-inventory-detail-back_to_list", lang=lang_code) }}</a
                 >
             </div>
         </div>
@@ -39,27 +41,27 @@
             <div class="card-body row">
                 <div class="col-md-4">
                     <div>
-                        <strong>Serial:</strong> {{ item.serial_number |
-                        default(value="-") }}
+                        <strong>{{ t(key="gui-inventory-detail-serial", lang=lang_code) }}</strong>
+                        {{ item.serial_number | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
                     </div>
                     <div>
-                        <strong>Interval:</strong>
+                        <strong>{{ t(key="gui-inventory-detail-interval", lang=lang_code) }}</strong>
                         {% if interval_name %}
-                        {{ t(key=interval_name, lang="en-US") }}
+                        {{ t(key=interval_name, lang=lang_code) }}
                         {% else %}
-                        {{ t(key="interval.unknown", lang="en-US") }}
+                        {{ t(key="INTERVAL_UNKNOWN", lang=lang_code) }}
                         {% endif %}
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div>
-                        <strong>Created:</strong>
+                        <strong>{{ t(key="gui-inventory-detail-created", lang=lang_code) }}</strong>
                         <span data-utc="{{ item.created_at }}"
                             >{{ item.created_at }}</span
                         >
                     </div>
                     <div>
-                        <strong>Updated:</strong>
+                        <strong>{{ t(key="gui-inventory-detail-updated", lang=lang_code) }}</strong>
                         <span data-utc="{{ item.updated_at }}"
                             >{{ item.updated_at }}</span
                         >
@@ -67,28 +69,33 @@
                 </div>
                 <div class="col-md-4">
                     <div>
-                        <strong>Last Checked:</strong>
+                        <strong>{{ t(key="gui-inventory-list-last_checked", lang=lang_code) }}</strong>
                         <span
-                            data-utc="{{ item.last_checked_at | default(value='Never') }}"
+                            data-utc="{{ item.last_checked_at | default(value=t(key='gui-common-never', lang=lang_code)) }}"
                         >
-                            {{ item.last_checked_at | default(value="Never") }}
+                            {{ item.last_checked_at | default(value=t(key="gui-common-never", lang=lang_code)) }}
                         </span>
                     </div>
                     <div>
-                        <strong>Expiry:</strong>
+                        <strong>{{ t(key="gui-inventory-detail-expiry", lang=lang_code) }}</strong>
                         <span
-                            data-utc="{{ item.expiry | default(value='Unspecified') }}"
+                            data-utc="{{ item.expiry | default(value=t(key='gui-inventory-detail-expiry_unspecified', lang=lang_code)) }}"
                         >
-                            {{ item.expiry | default(value="Unspecified") }}
+                            {{
+                                item.expiry
+                                | default(value=t(key="gui-inventory-detail-expiry_unspecified", lang=lang_code))
+                            }}
                         </span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <h2 class="h4">Performed Checks</h2>
+        <h2 class="h4">{{ t(key="gui-inventory-checks-heading", lang=lang_code) }}</h2>
         {% if checks | length == 0 %}
-        <div class="alert alert-info">No checks performed yet.</div>
+        <div class="alert alert-info">
+            {{ t(key="gui-inventory-checks-none", lang=lang_code) }}
+        </div>
         {% else %}
         <div class="d-flex flex-column gap-3">
             {% for check in checks %}
@@ -98,28 +105,32 @@
                 >
                     <div>
                         <strong>
-                            {{ check.check.checked_at | date(format="%Y-%m-%d
-                            %H:%M") }}
+                            {{ check.check.checked_at | date(format="%Y-%m-%d %H:%M") }}
                         </strong>
-                        — {{ t(key=check.result_code, lang="en-US") }}
+                        — {{ t(key=check.result_code, lang=lang_code) }}
                     </div>
                     <small class="text-muted">
-                        by {{ check.checked_by | default(value="Unknown user")
-                        }}
+                        {{ t(key="gui-inventory-checks-by_prefix", lang=lang_code) }}
+                        {{ check.checked_by | default(value=t(key="gui-common-unknown_user", lang=lang_code)) }}
                     </small>
                 </div>
                 <div class="card-body">
                     {% if check.check.notes %}
-                    <p><strong>Notes:</strong> {{ check.check.notes }}</p>
+                    <p>
+                        <strong>{{ t(key="gui-inventory-common-notes", lang=lang_code) }}</strong>
+                        {{ check.check.notes }}
+                    </p>
                     {% endif %}
                     <div class="table-responsive">
                         <table class="table table-sm align-middle mb-0">
                             <thead>
                                 <tr>
-                                    <th style="width: 60px">#</th>
-                                    <th>Step</th>
-                                    <th>Result</th>
-                                    <th>Notes</th>
+                                    <th style="width: 60px">
+                                        {{ t(key="gui-inventory-checks-step_number", lang=lang_code) }}
+                                    </th>
+                                    <th>{{ t(key="gui-inventory-checks-step", lang=lang_code) }}</th>
+                                    <th>{{ t(key="gui-inventory-checks-result", lang=lang_code) }}</th>
+                                    <th>{{ t(key="gui-inventory-common-notes", lang=lang_code) }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -131,16 +142,14 @@
                                             {{ step.name }}
                                         </div>
                                         <div class="text-muted small">
-                                            {{ step.description |
-                                            default(value="") }}
+                                            {{ step.description | default(value="") }}
                                         </div>
                                     </td>
                                     <td>
-                                        {{ t(key=step.result_code, lang="en-US")
-                                        }}
+                                        {{ t(key=step.result_code, lang=lang_code) }}
                                     </td>
                                     <td>
-                                        {{ step.notes | default(value="-") }}
+                                        {{ step.notes | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
                                     </td>
                                 </tr>
                                 {% endfor %}

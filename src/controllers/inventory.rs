@@ -100,8 +100,6 @@ async fn render_inventory_item_form(
     ctx: &AppContext,
     item: Option<inventory_items::Model>,
     form_action: String,
-    form_title: String,
-    submit_label: String,
 ) -> Result<Response> {
     let lookups = build_item_form_lookups(ctx).await?;
     let ItemFormLookups {
@@ -110,10 +108,10 @@ async fn render_inventory_item_form(
         intervals,
         item_kinds,
     } = lookups;
-    // let has_item = item.is_some();
-    // let item_json = item.map_or(serde_json::Value::Null, |model| {
-    //     serde_json::to_value(model).unwrap_or(serde_json::Value::Null)
-    // });
+    let has_item = item.is_some();
+    let item_json = item.map_or(serde_json::Value::Null, |model| {
+        serde_json::to_value(model).unwrap_or(serde_json::Value::Null)
+    });
     format::render().view(
         view,
         "inventory/add_item.html",
@@ -122,11 +120,9 @@ async fn render_inventory_item_form(
             "expiries": expiries,
             "intervals": intervals,
             "item_kinds": item_kinds,
-            "item": item,
+            "item": item_json,
             "form_action": form_action,
-            "form_title": form_title,
-            "submit_label": submit_label,
-            "is_edit": item.is_some(),
+            "is_edit": has_item,
         }),
     )
 }
@@ -300,15 +296,7 @@ pub async fn add_item(
     ViewEngine(v): ViewEngine<TeraView>,
     State(ctx): State<AppContext>,
 ) -> Result<Response> {
-    render_inventory_item_form(
-        &v,
-        &ctx,
-        None,
-        "/inventory/add".to_string(),
-        "Add Inventory Item".to_string(),
-        "Add Item".to_string(),
-    )
-    .await
+    render_inventory_item_form(&v, &ctx, None, "/inventory/add".to_string()).await
 }
 
 #[derive(serde::Deserialize)]
@@ -370,15 +358,7 @@ pub async fn edit_item(
         return Err(loco_rs::Error::NotFound);
     };
 
-    render_inventory_item_form(
-        &v,
-        &ctx,
-        Some(item),
-        format!("/inventory/item/{id}/edit"),
-        "Edit Inventory Item".to_string(),
-        "Save Changes".to_string(),
-    )
-    .await
+    render_inventory_item_form(&v, &ctx, Some(item), format!("/inventory/item/{id}/edit")).await
 }
 
 #[debug_handler]

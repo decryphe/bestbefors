@@ -1,20 +1,28 @@
 <nav class="navbar bg-body-tertiary mb-3">
     <div class="container-fluid">
         <a class="navbar-brand" href="/">
-            <img src="/static/logo.svg" width="64" alt="bestbefoRS" />
+            <img
+                src="/static/logo.svg"
+                width="64"
+                alt="{{ t(key='gui-common-logo_alt', lang=lang_code) }}"
+            />
         </a>
 
         <ul class="nav me-auto mb-2 mb-lg-0">
             <li class="nav-item">
                 <a class="nav-link active" aria-current="page" href="/">
-                    Dashboard
+                    {{ t(key="gui-nav-dashboard", lang=lang_code) }}
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="/inventory/list">Inventory</a>
+                <a class="nav-link" href="/inventory/list">
+                    {{ t(key="gui-nav-inventory", lang=lang_code) }}
+                </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="/manage">Manage</a>
+                <a class="nav-link" href="/manage">
+                    {{ t(key="gui-nav-manage", lang=lang_code) }}
+                </a>
             </li>
         </ul>
 
@@ -28,10 +36,10 @@
                 <input
                     class="form-control form-control-sm"
                     type="search"
-                    placeholder="Search inventory"
+                    placeholder="{{ t(key='gui-nav-search_placeholder', lang=lang_code) }}"
                     name="q"
                     value="{{ inventory_search | default(value='') }}"
-                    aria-label="Search inventory items"
+                    aria-label="{{ t(key='gui-nav-search_aria', lang=lang_code) }}"
                 />
             </form>
             <a class="nav-item">
@@ -43,14 +51,14 @@
                     class="btn btn-outline-primary btn-sm"
                     href="/auth/login"
                 >
-                    Log in
+                    {{ t(key="gui-nav-login", lang=lang_code) }}
                 </a>
                 <a
                     id="navbar-logout"
                     class="btn btn-outline-secondary btn-sm d-none"
                     href="/auth/logout"
                 >
-                    Log out
+                    {{ t(key="gui-nav-logout", lang=lang_code) }}
                 </a>
             </div>
         </div>

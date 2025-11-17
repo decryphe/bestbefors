@@ -1,40 +1,43 @@
 <!doctype html>
-<html lang="en">
+{% set lang_code = current_lang | default(value="en-US") %}
+<html lang="{{ lang_code }}">
     {% include "inc_head.html" %} {% include "inc_navbar.html" %}
     <body class="container">
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="mb-0">Add Checklist</h1>
+            <h1 class="mb-0">{{ t(key="gui-checklists-add_title", lang=lang_code) }}</h1>
             <a class="btn btn-outline-secondary" href="/checklists/list"
-                >Back to list</a
+                >{{ t(key="gui-common-back_to_list", lang=lang_code) }}</a
             >
         </div>
         <hr />
         <form id="checklist-form">
             <div class="card mb-4">
-                <div class="card-header">Checklist Details</div>
+                <div class="card-header">
+                    {{ t(key="gui-checklists-details_header", lang=lang_code) }}
+                </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label" for="checklist-name"
-                            >Name</label
-                        >
+                        <label class="form-label" for="checklist-name">
+                            {{ t(key="gui-inventory-list-name", lang=lang_code) }}
+                        </label>
                         <input
                             class="form-control"
                             id="checklist-name"
                             name="name"
                             type="text"
-                            placeholder="Enter checklist name"
+                            placeholder="{{ t(key='gui-checklists-name_placeholder', lang=lang_code) }}"
                         />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="checklist-description"
-                            >Description</label
-                        >
+                        <label class="form-label" for="checklist-description">
+                            {{ t(key="gui-common-description", lang=lang_code) }}
+                        </label>
                         <textarea
                             class="form-control"
                             id="checklist-description"
                             name="description"
                             rows="3"
-                            placeholder="Add an optional description"
+                            placeholder="{{ t(key='gui-checklists-description_placeholder', lang=lang_code) }}"
                         ></textarea>
                     </div>
                 </div>
@@ -44,13 +47,13 @@
                 <div
                     class="card-header d-flex justify-content-between align-items-center"
                 >
-                    <span>Checklist Steps</span>
+                    <span>{{ t(key="gui-checklists-steps", lang=lang_code) }}</span>
                     <button
                         class="btn btn-outline-primary btn-sm"
                         type="button"
                         onclick="addChecklistStep()"
                     >
-                        Add Step
+                        {{ t(key="gui-checklists-add_step", lang=lang_code) }}
                     </button>
                 </div>
                 <div class="card-body">
@@ -58,11 +61,15 @@
                         <table class="table align-middle">
                             <thead>
                                 <tr>
-                                    <th style="width: 90px">Position</th>
-                                    <th style="width: 25%">Step Title</th>
-                                    <th>Description</th>
+                                    <th style="width: 90px">
+                                        {{ t(key="gui-checklists-position", lang=lang_code) }}
+                                    </th>
+                                    <th style="width: 25%">
+                                        {{ t(key="gui-checklists-step_title", lang=lang_code) }}
+                                    </th>
+                                    <th>{{ t(key="gui-common-description", lang=lang_code) }}</th>
                                     <th style="width: 120px" class="text-end">
-                                        Actions
+                                        {{ t(key="gui-common-actions", lang=lang_code) }}
                                     </th>
                                 </tr>
                             </thead>
@@ -74,10 +81,10 @@
 
             <div class="mt-4 d-flex gap-2">
                 <button class="btn btn-primary" type="submit">
-                    Save Checklist
+                    {{ t(key="gui-checklists-save", lang=lang_code) }}
                 </button>
                 <button class="btn btn-outline-secondary" type="reset">
-                    Reset Form
+                    {{ t(key="gui-checklists-reset", lang=lang_code) }}
                 </button>
             </div>
         </form>
@@ -90,14 +97,14 @@
                         <input class="form-control" type="number" min="1" />
                     </td>
                     <td>
-                        <input class="form-control" type="text" placeholder="Step name" />
+                        <input class="form-control" type="text" placeholder="{{ t(key='gui-checklists-step_name_placeholder', lang=lang_code) }}" />
                     </td>
                     <td>
-                        <textarea class="form-control" rows="1" placeholder="Describe what to check"></textarea>
+                        <textarea class="form-control" rows="1" placeholder="{{ t(key='gui-checklists-step_description_placeholder', lang=lang_code) }}"></textarea>
                     </td>
                     <td class="text-end">
                         <button class="btn btn-outline-danger btn-sm" type="button" onclick="removeChecklistStep(this)">
-                            Remove
+                            {{ t(key="gui-common-remove", lang=lang_code) }}
                         </button>
                     </td>
                 `;
@@ -179,9 +186,9 @@
                     }
 
                     const message = await response.text();
-                    alert(message || "Failed to save checklist");
+                    alert(message || "{{ t(key='gui-checklists-save_error', lang=lang_code) }}");
                 } catch (error) {
-                    alert("Network error while saving checklist");
+                    alert("{{ t(key='gui-checklists-network_error', lang=lang_code) }}");
                     console.error(error);
                 }
             }

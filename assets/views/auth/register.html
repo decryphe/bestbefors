@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="en">
+{% set lang_code = current_lang | default(value="en-US") %}
+<html lang="{{ lang_code }}">
     {% include "inc_head.html" %}
     <body class="container py-5" style="max-width: 520px">
         <div class="text-center mb-4">
-            <h1 class="h3">Create your account</h1>
+            <h1 class="h3">{{ t(key="gui-auth-register-title", lang=lang_code) }}</h1>
             <p class="text-muted mb-0">
-                Register to start tracking intervals, expiry presets, and checklists.
+                {{ t(key="gui-auth-register-subtitle", lang=lang_code) }}
             </p>
         </div>
 
@@ -13,42 +14,52 @@
             <div class="card-body">
                 <form id="register-form" class="mb-3">
                     <div class="mb-3">
-                        <label class="form-label" for="register-name">Full name</label>
+                        <label class="form-label" for="register-name">
+                            {{ t(key="gui-auth-full_name", lang=lang_code) }}
+                        </label>
                         <input
                             id="register-name"
                             type="text"
                             class="form-control"
-                            placeholder="Pat Example"
+                            placeholder="{{ t(key='gui-auth-name_placeholder', lang=lang_code) }}"
                             required
                         />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="register-email">Email</label>
+                        <label class="form-label" for="register-email">
+                            {{ t(key="gui-auth-email", lang=lang_code) }}
+                        </label>
                         <input
                             id="register-email"
                             type="email"
                             class="form-control"
-                            placeholder="you@example.com"
+                            placeholder="{{ t(key='gui-auth-email_placeholder', lang=lang_code) }}"
                             required
                         />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="register-password">Password</label>
+                        <label class="form-label" for="register-password">
+                            {{ t(key="gui-auth-password", lang=lang_code) }}
+                        </label>
                         <input
                             id="register-password"
                             type="password"
                             class="form-control"
                             minlength="8"
-                            placeholder="At least 8 characters"
+                            placeholder="{{ t(key='gui-auth-password_hint', lang=lang_code) }}"
                             required
                         />
                     </div>
-                    <button class="btn btn-primary w-100" type="submit">Register</button>
+                    <button class="btn btn-primary w-100" type="submit">
+                        {{ t(key="gui-auth-register-button", lang=lang_code) }}
+                    </button>
                 </form>
                 <div id="register-alert" class="alert d-none" role="alert"></div>
                 <p class="text-center mb-0">
-                    Already have an account?
-                    <a href="/auth/login">Return to login</a>
+                    {{ t(key="gui-auth-register-has_account", lang=lang_code) }}
+                    <a href="/auth/login">
+                        {{ t(key="gui-auth-register-return_to_login", lang=lang_code) }}
+                    </a>
                 </p>
             </div>
         </div>
@@ -80,12 +91,12 @@
 
                     if (!response.ok) {
                         const text = await response.text();
-                        showRegisterMessage(text || "Registration failed.");
+                        showRegisterMessage(text || "{{ t(key='gui-auth-register-error', lang=lang_code) }}");
                         return;
                     }
 
                     showRegisterMessage(
-                        "Registration successful! Check your inbox for a verification email.",
+                        "{{ t(key='gui-auth-register-success', lang=lang_code) }}",
                         true,
                     );
                     setTimeout(() => {
@@ -93,7 +104,7 @@
                     }, 1200);
                 } catch (error) {
                     console.error(error);
-                    showRegisterMessage("Network error while registering.");
+                    showRegisterMessage("{{ t(key='gui-auth-register-network_error', lang=lang_code) }}");
                 }
             });
         </script>

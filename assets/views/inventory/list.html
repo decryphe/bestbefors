@@ -1,16 +1,18 @@
 <!doctype html>
-<html lang="en">
+{% set lang_code = current_lang | default(value="en-US") %}
+<html lang="{{ lang_code }}">
     {% include "inc_head.html" %} {% include "inc_navbar.html" %}
     <body class="container">
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="mb-0">List of Inventory Items</h1>
+            <h1 class="mb-0">{{ t(key="gui-inventory-list-title", lang=lang_code) }}</h1>
             <a class="btn btn-primary" href="/inventory/add"
-                >Add Inventory Item</a
+                >{{ t(key="gui-inventory-list-add_item", lang=lang_code) }}</a
             >
         </div>
         {% if inventory_search %}
         <p class="text-muted fst-italic">
-            Showing results for "{{ inventory_search }}"
+            {{ t(key="gui-inventory-list-showing_results", lang=lang_code) }}
+            "{{ inventory_search }}"
         </p>
         {% endif %}
         <hr />
@@ -22,13 +24,13 @@
                             <table class="table table-striped mb-0">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
-                                        <th>Name</th>
-                                        <th>Kind</th>
-                                        <th>Serial</th>
-                                        <th>Last Checked</th>
-                                        <th>Expiry</th>
-                                        <th class="text-end">Actions</th>
+                                        <th>{{ t(key="gui-inventory-list-id", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-list-name", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-list-kind", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-list-serial", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-list-last_checked", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-list-expiry", lang=lang_code) }}</th>
+                                        <th class="text-end">{{ t(key="gui-common-actions", lang=lang_code) }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -37,17 +39,16 @@
                                         <td>{{ item.id }}</td>
                                         <td>{{ item.name }}</td>
                                         <td>
-                                            {{ item.kind_name | default(value="-") }}
+                                            {{ item.kind_name | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
                                         </td>
                                         <td>
-                                            {{ item.serial | default(value="-")
-                                            }}
+                                            {{ item.serial | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
                                         </td>
-                                        <td data-utc="{{ item.last_checked_at | default(value='-')}}">
-                                            {{ item.last_checked_at | default(value='-') }}
+                                        <td data-utc="{{ item.last_checked_at | default(value=t(key='gui-common-not_available', lang=lang_code))}}">
+                                            {{ item.last_checked_at | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
                                         </td>
-                                        <td data-utc="{{ item.expiry | default(value='-')}}">
-                                            {{ item.expiry | default(value='-') }}
+                                        <td data-utc="{{ item.expiry | default(value=t(key='gui-common-not_available', lang=lang_code))}}">
+                                            {{ item.expiry | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
                                         </td>
                                         <td class="text-end">
                                             <div class="btn-group">
@@ -55,20 +56,20 @@
                                                     class="btn btn-sm btn-outline-secondary"
                                                     href="/inventory/item/{{ item.id }}"
                                                 >
-                                                    Details
+                                                    {{ t(key="gui-common-details", lang=lang_code) }}
                                                 </a>
                                                 <a
                                                     class="btn btn-sm btn-primary"
                                                     href="/inventory/item/{{ item.id }}/check"
                                                 >
-                                                    Check
+                                                    {{ t(key="gui-inventory-common-check", lang=lang_code) }}
                                                 </a>
                                                 <button
                                                     class="btn btn-sm btn-outline-danger"
                                                     type="button"
                                                     onclick="removeInventoryItem({{ item.id }})"
                                                 >
-                                                    Remove
+                                                    {{ t(key="gui-common-remove", lang=lang_code) }}
                                                 </button>
                                             </div>
                                         </td>
@@ -84,7 +85,7 @@
         <script>
             async function removeInventoryItem(id) {
                 const confirmed = window.confirm(
-                    "Remove this inventory item? This is only allowed if it has no checks.",
+                    "{{ t(key='gui-inventory-list-remove_confirm', lang=lang_code) }}",
                 );
                 if (!confirmed) {
                     return;
@@ -101,10 +102,10 @@
                     }
 
                     const message = await response.text();
-                    alert(message || "Inventory item could not be removed.");
+                    alert(message || "{{ t(key='gui-inventory-list-remove_error', lang=lang_code) }}");
                 } catch (error) {
                     console.error(error);
-                    alert("Network error while removing inventory item.");
+                    alert("{{ t(key='gui-inventory-list-remove_network_error', lang=lang_code) }}");
                 }
             }
         </script>

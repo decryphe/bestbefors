@@ -1,11 +1,16 @@
 <!doctype html>
-<html lang="en">
+{% set lang_code = current_lang | default(value="en-US") %}
+<html lang="{{ lang_code }}">
     {% include "inc_head.html" %}
     {% include "inc_navbar.html" %}
     <body class="container">
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="mb-0">Inventory Item Kinds</h1>
-            <a class="btn btn-primary" href="/inventory/add_item_kind">Add Item Kind</a>
+            <h1 class="mb-0">
+                {{ t(key="gui-inventory-item_kind-title", lang=lang_code) }}
+            </h1>
+            <a class="btn btn-primary" href="/inventory/add_item_kind">
+                {{ t(key="gui-inventory-item_kind-add_button", lang=lang_code) }}
+            </a>
         </div>
         <hr />
         <div class="row">
@@ -16,14 +21,14 @@
                             <table class="table table-striped mb-0">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
-                                        <th>Name</th>
-                                        <th>Created At</th>
-                                        <th>Updated At</th>
-                                        <th>Default Checklist</th>
-                                        <th>Default Interval</th>
-                                        <th>Default Expiry</th>
-                                        <th class="text-end">Actions</th>
+                                        <th>{{ t(key="gui-inventory-list-id", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-list-name", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-item_kind-created", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-item_kind-updated", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-item_kind-default_checklist", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-item_kind-default_interval", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-item_kind-default_expiry", lang=lang_code) }}</th>
+                                        <th class="text-end">{{ t(key="gui-common-actions", lang=lang_code) }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -41,16 +46,22 @@
                                                 {{ row.kind.updated_at }}
                                             </span>
                                         </td>
-                                        <td>{{ row.default_checklist_name | default(value="-") }}</td>
-                                        <td>{{ row.default_interval_code | default(value="-") }}</td>
-                                        <td>{{ row.default_expiry_code | default(value="-") }}</td>
+                                        <td>
+                                            {{ row.default_checklist_name | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
+                                        </td>
+                                        <td>
+                                            {{ row.default_interval_code | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
+                                        </td>
+                                        <td>
+                                            {{ row.default_expiry_code | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
+                                        </td>
                                         <td class="text-end">
                                             <button
                                                 class="btn btn-outline-danger btn-sm"
                                                 type="button"
                                                 onclick="removeItemKind({{ row.kind.id }})"
                                             >
-                                                Remove
+                                                {{ t(key="gui-common-remove", lang=lang_code) }}
                                             </button>
                                         </td>
                                     </tr>
@@ -65,7 +76,7 @@
         <script>
             async function removeItemKind(id) {
                 const confirmed = window.confirm(
-                    "Are you sure you want to remove this item kind?",
+                    "{{ t(key='gui-inventory-item_kind-remove_confirm', lang=lang_code) }}",
                 );
                 if (!confirmed) {
                     return;
@@ -82,10 +93,10 @@
                     }
 
                     const message = await response.text();
-                    alert(message || "Item kind could not be removed.");
+                    alert(message || "{{ t(key='gui-inventory-item_kind-remove_error', lang=lang_code) }}");
                 } catch (error) {
                     console.error(error);
-                    alert("Network error while removing item kind.");
+                    alert("{{ t(key='gui-inventory-item_kind-remove_network_error', lang=lang_code) }}");
                 }
             }
         </script>

@@ -1,12 +1,13 @@
 <!doctype html>
-<html lang="en">
+{% set lang_code = current_lang | default(value="en-US") %}
+<html lang="{{ lang_code }}">
     {% include "inc_head.html" %} {% include "inc_navbar.html" %}
     <body class="container">
-        <h1>Add Inventory Item</h1>
+        <h1>{{ t(key="gui-inventory-item_kind-add_title", lang=lang_code) }}</h1>
         <form method="POST">
             <div class="mb-3">
                 <label for="itemKindName" class="form-label">
-                    Item Kind Name
+                    {{ t(key="gui-inventory-item_kind-name_label", lang=lang_code) }}
                 </label>
                 <input
                     type="text"
@@ -18,7 +19,7 @@
 
             <div class="mb-3">
                 <label for="itemChecklist" class="form-label">
-                    Default Checklist
+                    {{ t(key="gui-inventory-item_kind-default_checklist", lang=lang_code) }}
                 </label>
                 <select
                     class="form-select"
@@ -39,7 +40,7 @@
 
             <div class="mb-3">
                 <label for="itemCheckInterval" class="form-label">
-                    Default Check Interval
+                    {{ t(key="gui-inventory-item_kind-default_interval", lang=lang_code) }}
                 </label>
                 <select
                     class="form-select"
@@ -48,7 +49,7 @@
                 >
                     {% for interval in intervals %} {% if loop.first %}
                     <option value="{{ interval.id }}" selected>
-                        {{ t(key=interval.code, lang="de-DE") }}
+                        {{ t(key=interval.code, lang=lang_code) }}
                     </option>
                     {% else %}
                     <option value="{{ interval.id }}">
@@ -60,7 +61,7 @@
 
             <div class="mb-3">
                 <label for="itemExpiry" class="form-label">
-                    Default Item Expiry
+                    {{ t(key="gui-inventory-item_kind-default_expiry", lang=lang_code) }}
                 </label>
                 <select
                     class="form-select"
@@ -69,7 +70,7 @@
                 >
                     {% for expiry in expiries %} {% if loop.first %}
                     <option value="{{ expiry.id }}" selected>
-                        {{ t(key=expiry.code, lang="de-DE") }}
+                        {{ t(key=expiry.code, lang=lang_code) }}
                     </option>
                     {% else %}
                     <option value="{{ expiry.id }}">
@@ -79,7 +80,9 @@
                 </select>
             </div>
 
-            <button type="submit" class="btn btn-primary">Submit</button>
+            <button type="submit" class="btn btn-primary">
+                {{ t(key="gui-common-submit", lang=lang_code) }}
+            </button>
         </form>
         <div class="row">
             <div class="col"></div>

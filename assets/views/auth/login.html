@@ -1,18 +1,19 @@
 <!doctype html>
-<html lang="en">
+{% set lang_code = current_lang | default(value="en-US") %}
+<html lang="{{ lang_code }}">
     {% include "inc_head.html" %}
     <body class="container py-5" style="max-width: 520px">
         <div class="text-center mb-4">
             <img
                 src="/static/logo.svg"
-                alt="Bestbefors logo"
+                alt="{{ t(key='gui-common-logo_alt', lang=lang_code) }}"
                 width="96"
                 height="96"
                 class="mb-3"
             />
-            <h1 class="h3">Welcome back</h1>
+            <h1 class="h3">{{ t(key="gui-auth-login-title", lang=lang_code) }}</h1>
             <p class="text-muted mb-0">
-                Sign in to manage your inventories and scheduled checks.
+                {{ t(key="gui-auth-login-subtitle", lang=lang_code) }}
             </p>
         </div>
 
@@ -20,31 +21,39 @@
             <div class="card-body">
                 <form id="login-form" class="mb-3">
                     <div class="mb-3">
-                        <label class="form-label" for="login-email">Email</label>
+                        <label class="form-label" for="login-email">
+                            {{ t(key="gui-auth-email", lang=lang_code) }}
+                        </label>
                         <input
                             id="login-email"
                             type="email"
                             class="form-control"
-                            placeholder="you@example.com"
+                            placeholder="{{ t(key='gui-auth-email_placeholder', lang=lang_code) }}"
                             required
                         />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="login-password">Password</label>
+                        <label class="form-label" for="login-password">
+                            {{ t(key="gui-auth-password", lang=lang_code) }}
+                        </label>
                         <input
                             id="login-password"
                             type="password"
                             class="form-control"
-                            placeholder="••••••••"
+                            placeholder="{{ t(key='gui-auth-password_placeholder', lang=lang_code) }}"
                             required
                         />
                     </div>
-                    <button class="btn btn-primary w-100" type="submit">Log In</button>
+                    <button class="btn btn-primary w-100" type="submit">
+                        {{ t(key="gui-nav-login", lang=lang_code) }}
+                    </button>
                 </form>
                 <div id="login-alert" class="alert d-none" role="alert"></div>
                 <p class="text-center mb-0">
-                    Need an account?
-                    <a href="/auth/register">Register here</a>
+                    {{ t(key="gui-auth-login-no_account", lang=lang_code) }}
+                    <a href="/auth/register">
+                        {{ t(key="gui-auth-login-register_link", lang=lang_code) }}
+                    </a>
                 </p>
             </div>
         </div>
@@ -75,19 +84,19 @@
 
                     if (!response.ok) {
                         const text = await response.text();
-                        showMessage(text || "Invalid credentials.");
+                        showMessage(text || "{{ t(key='gui-auth-login-invalid', lang=lang_code) }}");
                         return;
                     }
 
                     const data = await response.json();
                     localStorage.setItem("auth_token", data.token);
-                    showMessage("Login successful! Redirecting…", true);
+                    showMessage("{{ t(key='gui-auth-login-success', lang=lang_code) }}", true);
                     setTimeout(() => {
                         window.location.href = "/";
                     }, 800);
                 } catch (error) {
                     console.error(error);
-                    showMessage("Network error while logging in.");
+                    showMessage("{{ t(key='gui-auth-login-network_error', lang=lang_code) }}");
                 }
             });
         </script>

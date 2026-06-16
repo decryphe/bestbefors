@@ -91,6 +91,32 @@
             </div>
         </div>
 
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h5 mb-3">
+                    {{ t(key="gui-inventory-form-metadata_title", lang=lang_code) }}
+                </h2>
+                {% if metadata | length == 0 %}
+                <p class="text-muted mb-0">
+                    {{ t(key="gui-inventory-form-metadata_empty", lang=lang_code) }}
+                </p>
+                {% else %}
+                <div class="row">
+                    {% for entry in metadata %}
+                    <div class="col-md-6 mb-2">
+                        <strong>{{ entry.name }}</strong>
+                        {% if entry.value %}
+                        {{ entry.value }}
+                        {% else %}
+                        {{ t(key="gui-common-not_available", lang=lang_code) }}
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
         <h2 class="h4">{{ t(key="gui-inventory-checks-heading", lang=lang_code) }}</h2>
         {% if checks | length == 0 %}
         <div class="alert alert-info">

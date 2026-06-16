@@ -1,0 +1,78 @@
+<!doctype html>
+{% set lang_code = current_lang | default(value="en-US") %}
+<html lang="{{ lang_code }}">
+    {% include "inc_head.html" %}
+    {% include "inc_navbar.html" %}
+    <body class="container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h1 class="h3 mb-1">{{ item_kind.kind.name }}</h1>
+                <p class="text-muted mb-0">
+                    {{ t(key="gui-inventory-item_kind-detail-subtitle", lang=lang_code) }}
+                </p>
+            </div>
+            <div class="btn-group">
+                <a
+                    class="btn btn-outline-primary"
+                    href="/inventory/item_kinds/{{ item_kind.kind.id }}/edit"
+                >
+                    {{ t(key="gui-common-edit", lang=lang_code) }}
+                </a>
+                <a class="btn btn-outline-secondary" href="/inventory/item_kinds">
+                    {{ t(key="gui-common-back_to_list", lang=lang_code) }}
+                </a>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body row">
+                <div class="col-md-6">
+                    <div class="mb-2">
+                        <strong>{{ t(key="gui-inventory-item_kind-test_standard", lang=lang_code) }}</strong>
+                        {% if item_kind.kind.test_standard %}
+                            {{ item_kind.kind.test_standard }}
+                        {% else %}
+                            {{ t(key="gui-common-not_available", lang=lang_code) }}
+                        {% endif %}
+                    </div>
+                    <div class="mb-2">
+                        <strong>{{ t(key="gui-inventory-item_kind-default_checklist", lang=lang_code) }}</strong>
+                        {{ item_kind.default_checklist_name | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>{{ t(key="gui-inventory-item_kind-default_interval", lang=lang_code) }}</strong>
+                        {% if item_kind.default_interval_code %}
+                        {{ t(key=item_kind.default_interval_code, lang=lang_code) }}
+                        {% else %}
+                        {{ t(key="gui-common-not_available", lang=lang_code) }}
+                        {% endif %}
+                    </div>
+                    <div class="mb-2">
+                        <strong>{{ t(key="gui-inventory-item_kind-default_expiry", lang=lang_code) }}</strong>
+                        {{ item_kind.default_expiry_code | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-2">
+                        <strong>{{ t(key="gui-inventory-item_kind-created", lang=lang_code) }}</strong>
+                        <span data-utc="{{ item_kind.kind.created_at }}">{{ item_kind.kind.created_at }}</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong>{{ t(key="gui-inventory-item_kind-updated", lang=lang_code) }}</strong>
+                        <span data-utc="{{ item_kind.kind.updated_at }}">{{ item_kind.kind.updated_at }}</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong>{{ t(key="gui-inventory-item_kind-metadata_fields", lang=lang_code) }}</strong>
+                        {% if item_kind.metadata_fields | length > 0 %}
+                            {% for field_name in item_kind.metadata_fields %}
+                            <span class="badge text-bg-light border me-1">{{ field_name }}</span>
+                            {% endfor %}
+                        {% else %}
+                            {{ t(key="gui-common-not_available", lang=lang_code) }}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

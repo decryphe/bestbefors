@@ -12,6 +12,7 @@ pub struct Model {
     pub id: i32,
     #[sea_orm(unique)]
     pub name: String,
+    pub test_standard: String,
     pub default_checklist_id: i32,
     pub default_interval_id: i32,
     pub default_expiry_id: i32,

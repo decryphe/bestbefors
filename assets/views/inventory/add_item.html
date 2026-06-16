@@ -40,9 +40,62 @@
 
             <script>
                 const item_kinds = {{ item_kinds | json_encode() | safe }};
+                const itemKindMetadataFields = {{ item_kind_metadata_fields | json_encode() | safe }};
+                const itemMetadataValues = {{ item_metadata_values | json_encode() | safe }};
                 const expiries = {{ expiries | json_encode() | safe }};
                 const isEdit = {{ is_edit_flag | json_encode() | safe }};
                 const existingItem = {{ item | json_encode() | safe }};
+                function currentMetadataValuesByName() {
+                    const values = {};
+                    for (const row of document.querySelectorAll("[data-metadata-field-name]")) {
+                        const fieldName = row.getAttribute("data-metadata-field-name");
+                        const input = row.querySelector("input[name='metadata_values']");
+                        if (fieldName && input) {
+                            values[fieldName] = input.value;
+                        }
+                    }
+                    return values;
+                }
+                function renderMetadataFields(kindId, initialValues = {}) {
+                    const container = document.getElementById("itemMetadataFields");
+                    const emptyState = document.getElementById("itemMetadataFieldsEmpty");
+                    const fields = itemKindMetadataFields[kindId] || [];
+
+                    container.innerHTML = "";
+                    if (fields.length === 0) {
+                        emptyState.style.display = "block";
+                        return;
+                    }
+
+                    emptyState.style.display = "none";
+                    for (const field of fields) {
+                        const wrapper = document.createElement("div");
+                        wrapper.className = "mb-3";
+                        wrapper.setAttribute("data-metadata-field-name", field.name);
+
+                        const hiddenIdInput = document.createElement("input");
+                        hiddenIdInput.type = "hidden";
+                        hiddenIdInput.name = "metadata_field_ids";
+                        hiddenIdInput.value = field.id;
+
+                        const label = document.createElement("label");
+                        label.className = "form-label";
+                        label.setAttribute("for", `metadata-field-${field.id}`);
+                        label.textContent = field.name;
+
+                        const input = document.createElement("input");
+                        input.type = "text";
+                        input.className = "form-control";
+                        input.id = `metadata-field-${field.id}`;
+                        input.name = "metadata_values";
+                        input.value = initialValues[field.name] || "";
+
+                        wrapper.appendChild(hiddenIdInput);
+                        wrapper.appendChild(label);
+                        wrapper.appendChild(input);
+                        container.appendChild(wrapper);
+                    }
+                }
                 function calculateExpiry() {
                     let expiry = expiries.find((e) => e.id == document.getElementById("itemExpirySelect").value);
                     let utcNow = new Date();
@@ -65,13 +118,25 @@
                     }
                 }
                 function onChangeItemKind(element) {
+                    const currentValues = currentMetadataValuesByName();
                     let item_kind = item_kinds.find((item) => item.id == element.value);
                     document.getElementById("itemChecklist").value = item_kind.default_checklist_id;
                     document.getElementById("itemCheckInterval").value = item_kind.default_interval_id;
                     document.getElementById("itemExpirySelect").value = item_kind.default_expiry_id;
+                    renderMetadataFields(String(item_kind.id), currentValues);
                     calculateExpiry();
                 }
                 function initForm() {
+                    const selectedKindId = document.getElementById("itemKind").value;
+                    const existingMetadataValuesByName = {};
+                    const fields = itemKindMetadataFields[selectedKindId] || [];
+                    for (const field of fields) {
+                        const value = itemMetadataValues[field.id];
+                        if (value !== undefined) {
+                            existingMetadataValuesByName[field.name] = value;
+                        }
+                    }
+                    renderMetadataFields(selectedKindId, existingMetadataValuesByName);
                     if (!isEdit) {
                         calculateExpiry();
                         return;
@@ -193,6 +258,18 @@
                     max="2100-01-01"
                     disabled
                 />
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">
+                        {{ t(key="gui-inventory-form-metadata_title", lang=lang_code) }}
+                    </h2>
+                    <div id="itemMetadataFields"></div>
+                    <p id="itemMetadataFieldsEmpty" class="text-muted mb-0">
+                        {{ t(key="gui-inventory-form-metadata_empty", lang=lang_code) }}
+                    </p>
+                </div>
             </div>
 
             <button type="submit" class="btn btn-primary">{{ submit_label }}</button>

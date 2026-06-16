@@ -1,3 +1,4 @@
+use axum_extra::extract::Form as HtmlForm;
 use chrono::Utc;
 use loco_rs::prelude::*;
 use sea_orm::{
@@ -11,6 +12,8 @@ use crate::models::_entities::{
     executed_checklist_steps::Column as ExecutedChecklistStepsColumn,
     inventory_item_check_steps::Column as InventoryItemCheckStepsColumn,
     inventory_item_checks::Column as InventoryItemChecksColumn,
+    inventory_item_kind_metadata_fields::Column as InventoryItemKindMetadataFieldsColumn,
+    inventory_item_metadata_values::Column as InventoryItemMetadataValuesColumn,
     inventory_items::Column as InventoryItemsColumn,
 };
 use crate::{
@@ -18,7 +21,8 @@ use crate::{
     initializers::app_cache::{refresh_item_kinds_cache, AppData},
     models::{
         checklist_steps, checklists, executed_checklist_steps, executed_checklists, expiries,
-        intervals, inventory_item_check_steps, inventory_item_checks, inventory_item_kinds,
+        intervals, inventory_item_check_steps, inventory_item_checks,
+        inventory_item_kind_metadata_fields, inventory_item_kinds, inventory_item_metadata_values,
         inventory_items,
     },
 };
@@ -29,6 +33,16 @@ struct InventoryItemKindRow {
     default_checklist_name: Option<String>,
     default_interval_code: Option<String>,
     default_expiry_code: Option<String>,
+    metadata_fields: Vec<String>,
+}
+
+#[derive(serde::Serialize)]
+struct InventoryItemKindDetailView {
+    kind: inventory_item_kinds::Model,
+    default_checklist_name: Option<String>,
+    default_interval_code: Option<String>,
+    default_expiry_code: Option<String>,
+    metadata_fields: Vec<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -54,6 +68,18 @@ struct InventoryListItem {
     item: inventory_items::Model,
     kind_name: Option<String>,
     serial: Option<String>,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct MetadataFieldDefinition {
+    id: i32,
+    name: String,
+}
+
+#[derive(serde::Serialize)]
+struct ItemMetadataValueView {
+    name: String,
+    value: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -82,6 +108,17 @@ struct ItemFormLookups {
     item_kinds: Vec<inventory_item_kinds::Model>,
 }
 
+struct ItemKindFormLookups {
+    checklists: Vec<checklists::Model>,
+    expiries: Vec<expiries::Model>,
+    intervals: Vec<intervals::Model>,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct MetadataFieldFormRow {
+    name: String,
+}
+
 async fn build_item_form_lookups(ctx: &AppContext) -> Result<ItemFormLookups> {
     let checklists = checklists::Entity::find().all(&ctx.db).await?;
     let expiries = expiries::Entity::find().all(&ctx.db).await?;
@@ -108,7 +145,35 @@ async fn render_inventory_item_form(
         intervals,
         item_kinds,
     } = lookups;
+    let item_kind_ids = item_kinds.iter().map(|kind| kind.id).collect::<Vec<_>>();
+    let metadata_fields_by_kind_id =
+        load_metadata_fields_by_kind_ids(&ctx.db, item_kind_ids).await?;
+    let metadata_field_definitions_by_kind_id = metadata_fields_by_kind_id
+        .into_iter()
+        .map(|(kind_id, fields)| {
+            (
+                kind_id,
+                fields
+                    .into_iter()
+                    .map(|field| MetadataFieldDefinition {
+                        id: field.id,
+                        name: field.name,
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
     let has_item = item.is_some();
+    let item_metadata_values = if let Some(model) = item.as_ref() {
+        let values_by_item_id =
+            load_metadata_value_maps_by_field_id_for_items(&ctx.db, &[model.id]).await?;
+        values_by_item_id
+            .get(&model.id)
+            .cloned()
+            .unwrap_or_default()
+    } else {
+        HashMap::new()
+    };
     let item_json = item.map_or(serde_json::Value::Null, |model| {
         serde_json::to_value(model).unwrap_or(serde_json::Value::Null)
     });
@@ -120,9 +185,340 @@ async fn render_inventory_item_form(
             "expiries": expiries,
             "intervals": intervals,
             "item_kinds": item_kinds,
+            "item_kind_metadata_fields": metadata_field_definitions_by_kind_id,
             "item": item_json,
+            "item_metadata_values": item_metadata_values,
             "form_action": form_action,
             "is_edit": has_item,
+        }),
+    )
+}
+
+async fn build_item_kind_form_lookups(ctx: &AppContext) -> Result<ItemKindFormLookups> {
+    let checklists = checklists::Entity::find().all(&ctx.db).await?;
+    let expiries = expiries::Entity::find().all(&ctx.db).await?;
+    let intervals = intervals::Entity::find().all(&ctx.db).await?;
+    Ok(ItemKindFormLookups {
+        checklists,
+        expiries,
+        intervals,
+    })
+}
+
+async fn load_metadata_field_names_by_kind_ids<C>(
+    db: &C,
+    kind_ids: Vec<i32>,
+) -> Result<HashMap<i32, Vec<String>>>
+where
+    C: ConnectionTrait,
+{
+    if kind_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let metadata_fields = inventory_item_kind_metadata_fields::Entity::find()
+        .filter(InventoryItemKindMetadataFieldsColumn::InventoryItemKindId.is_in(kind_ids))
+        .order_by_asc(InventoryItemKindMetadataFieldsColumn::Position)
+        .all(db)
+        .await?;
+
+    let mut by_kind_id = HashMap::<i32, Vec<String>>::new();
+    for field in metadata_fields {
+        by_kind_id
+            .entry(field.inventory_item_kind_id)
+            .or_default()
+            .push(field.name);
+    }
+
+    Ok(by_kind_id)
+}
+
+async fn load_metadata_fields_by_kind_ids<C>(
+    db: &C,
+    kind_ids: Vec<i32>,
+) -> Result<HashMap<i32, Vec<inventory_item_kind_metadata_fields::Model>>>
+where
+    C: ConnectionTrait,
+{
+    if kind_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let metadata_fields = inventory_item_kind_metadata_fields::Entity::find()
+        .filter(InventoryItemKindMetadataFieldsColumn::InventoryItemKindId.is_in(kind_ids))
+        .order_by_asc(InventoryItemKindMetadataFieldsColumn::Position)
+        .all(db)
+        .await?;
+
+    let mut by_kind_id = HashMap::<i32, Vec<inventory_item_kind_metadata_fields::Model>>::new();
+    for field in metadata_fields {
+        by_kind_id
+            .entry(field.inventory_item_kind_id)
+            .or_default()
+            .push(field);
+    }
+
+    Ok(by_kind_id)
+}
+
+async fn load_metadata_field_form_rows<C>(
+    db: &C,
+    item_kind_id: i32,
+) -> Result<Vec<MetadataFieldFormRow>>
+where
+    C: ConnectionTrait,
+{
+    Ok(inventory_item_kind_metadata_fields::Entity::find()
+        .filter(InventoryItemKindMetadataFieldsColumn::InventoryItemKindId.eq(item_kind_id))
+        .order_by_asc(InventoryItemKindMetadataFieldsColumn::Position)
+        .all(db)
+        .await?
+        .into_iter()
+        .map(|field| MetadataFieldFormRow { name: field.name })
+        .collect())
+}
+
+async fn load_metadata_value_maps_for_items<C>(
+    db: &C,
+    item_ids: &[i32],
+) -> Result<HashMap<i32, HashMap<String, String>>>
+where
+    C: ConnectionTrait,
+{
+    if item_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let values = inventory_item_metadata_values::Entity::find()
+        .filter(InventoryItemMetadataValuesColumn::InventoryItemId.is_in(item_ids.to_vec()))
+        .all(db)
+        .await?;
+
+    if values.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let field_ids = values
+        .iter()
+        .map(|value| value.inventory_item_kind_metadata_field_id)
+        .collect::<Vec<_>>();
+    let fields = inventory_item_kind_metadata_fields::Entity::find()
+        .filter(InventoryItemKindMetadataFieldsColumn::Id.is_in(field_ids))
+        .all(db)
+        .await?;
+    let field_names_by_id = fields
+        .into_iter()
+        .map(|field| (field.id, field.name))
+        .collect::<HashMap<_, _>>();
+
+    let mut values_by_item_id = HashMap::<i32, HashMap<String, String>>::new();
+    for value in values {
+        let Some(field_name) = field_names_by_id.get(&value.inventory_item_kind_metadata_field_id)
+        else {
+            continue;
+        };
+
+        values_by_item_id
+            .entry(value.inventory_item_id)
+            .or_default()
+            .insert(field_name.clone(), value.value);
+    }
+
+    Ok(values_by_item_id)
+}
+
+async fn load_metadata_value_maps_by_field_id_for_items<C>(
+    db: &C,
+    item_ids: &[i32],
+) -> Result<HashMap<i32, HashMap<i32, String>>>
+where
+    C: ConnectionTrait,
+{
+    if item_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let values = inventory_item_metadata_values::Entity::find()
+        .filter(InventoryItemMetadataValuesColumn::InventoryItemId.is_in(item_ids.to_vec()))
+        .all(db)
+        .await?;
+
+    let mut values_by_item_id = HashMap::<i32, HashMap<i32, String>>::new();
+    for value in values {
+        values_by_item_id
+            .entry(value.inventory_item_id)
+            .or_default()
+            .insert(value.inventory_item_kind_metadata_field_id, value.value);
+    }
+
+    Ok(values_by_item_id)
+}
+
+fn metadata_values_from_form(
+    metadata_field_ids: Option<Vec<i32>>,
+    metadata_values: Option<Vec<String>>,
+) -> HashMap<i32, String> {
+    metadata_field_ids
+        .unwrap_or_default()
+        .into_iter()
+        .zip(metadata_values.unwrap_or_default())
+        .collect()
+}
+
+async fn replace_metadata_fields_for_kind<C>(
+    db: &C,
+    item_kind_id: i32,
+    field_names: &[String],
+) -> Result<Vec<inventory_item_kind_metadata_fields::Model>>
+where
+    C: ConnectionTrait,
+{
+    inventory_item_kind_metadata_fields::Entity::delete_many()
+        .filter(InventoryItemKindMetadataFieldsColumn::InventoryItemKindId.eq(item_kind_id))
+        .exec(db)
+        .await?;
+
+    let mut created_fields = Vec::new();
+    for (position, field_name) in field_names.iter().enumerate() {
+        let now = Utc::now();
+        let created = inventory_item_kind_metadata_fields::ActiveModel {
+            created_at: ActiveValue::set(now.into()),
+            inventory_item_kind_id: ActiveValue::set(item_kind_id),
+            name: ActiveValue::set(field_name.clone()),
+            position: ActiveValue::set(position as i32),
+            updated_at: ActiveValue::set(now.into()),
+            ..Default::default()
+        }
+        .insert(db)
+        .await?;
+        created_fields.push(created);
+    }
+
+    Ok(created_fields)
+}
+
+async fn replace_metadata_values_for_item<C>(
+    db: &C,
+    item_id: i32,
+    metadata_fields: &[inventory_item_kind_metadata_fields::Model],
+    existing_values_by_name: &HashMap<String, String>,
+) -> Result<()>
+where
+    C: ConnectionTrait,
+{
+    inventory_item_metadata_values::Entity::delete_many()
+        .filter(InventoryItemMetadataValuesColumn::InventoryItemId.eq(item_id))
+        .exec(db)
+        .await?;
+
+    for field in metadata_fields {
+        let now = Utc::now();
+        inventory_item_metadata_values::ActiveModel {
+            created_at: ActiveValue::set(now.into()),
+            inventory_item_id: ActiveValue::set(item_id),
+            inventory_item_kind_metadata_field_id: ActiveValue::set(field.id),
+            updated_at: ActiveValue::set(now.into()),
+            value: ActiveValue::set(
+                existing_values_by_name
+                    .get(&field.name)
+                    .cloned()
+                    .unwrap_or_default(),
+            ),
+            ..Default::default()
+        }
+        .insert(db)
+        .await?;
+    }
+
+    Ok(())
+}
+
+async fn replace_metadata_values_for_item_by_field_id<C>(
+    db: &C,
+    item_id: i32,
+    metadata_fields: &[inventory_item_kind_metadata_fields::Model],
+    values_by_field_id: &HashMap<i32, String>,
+) -> Result<()>
+where
+    C: ConnectionTrait,
+{
+    inventory_item_metadata_values::Entity::delete_many()
+        .filter(InventoryItemMetadataValuesColumn::InventoryItemId.eq(item_id))
+        .exec(db)
+        .await?;
+
+    for field in metadata_fields {
+        let now = Utc::now();
+        inventory_item_metadata_values::ActiveModel {
+            created_at: ActiveValue::set(now.into()),
+            inventory_item_id: ActiveValue::set(item_id),
+            inventory_item_kind_metadata_field_id: ActiveValue::set(field.id),
+            updated_at: ActiveValue::set(now.into()),
+            value: ActiveValue::set(
+                values_by_field_id
+                    .get(&field.id)
+                    .cloned()
+                    .unwrap_or_default(),
+            ),
+            ..Default::default()
+        }
+        .insert(db)
+        .await?;
+    }
+
+    Ok(())
+}
+
+async fn rebuild_metadata_values_for_kind_items<C>(
+    db: &C,
+    item_kind_id: i32,
+    item_ids: &[i32],
+    existing_values_by_item_id: HashMap<i32, HashMap<String, String>>,
+) -> Result<()>
+where
+    C: ConnectionTrait,
+{
+    let metadata_fields = inventory_item_kind_metadata_fields::Entity::find()
+        .filter(InventoryItemKindMetadataFieldsColumn::InventoryItemKindId.eq(item_kind_id))
+        .order_by_asc(InventoryItemKindMetadataFieldsColumn::Position)
+        .all(db)
+        .await?;
+
+    for item_id in item_ids {
+        let existing_values = existing_values_by_item_id
+            .get(item_id)
+            .cloned()
+            .unwrap_or_default();
+        replace_metadata_values_for_item(db, *item_id, &metadata_fields, &existing_values).await?;
+    }
+
+    Ok(())
+}
+
+async fn render_item_kind_form(
+    view: &TeraView,
+    ctx: &AppContext,
+    item_kind: Option<inventory_item_kinds::Model>,
+    form_action: String,
+) -> Result<Response> {
+    let lookups = build_item_kind_form_lookups(ctx).await?;
+    let metadata_fields = match item_kind.as_ref() {
+        Some(item_kind) => load_metadata_field_form_rows(&ctx.db, item_kind.id).await?,
+        None => Vec::new(),
+    };
+    let has_item_kind = item_kind.is_some();
+
+    format::render().view(
+        view,
+        "inventory/add_item_kind.html",
+        data!({
+            "checklists": lookups.checklists,
+            "expiries": lookups.expiries,
+            "intervals": lookups.intervals,
+            "item_kind": item_kind,
+            "metadata_fields": metadata_fields,
+            "form_action": form_action,
+            "is_edit": has_item_kind,
         }),
     )
 }
@@ -196,10 +592,28 @@ pub async fn show_item_details(
     let users = ctx.get_users()?;
     let checklists = ctx.get_checklists()?;
     let intervals = ctx.get_intervals()?;
+    let metadata_fields_by_kind_id =
+        load_metadata_fields_by_kind_ids(&ctx.db, vec![item.inventory_item_kind_id]).await?;
+    let metadata_values_by_item_id =
+        load_metadata_value_maps_by_field_id_for_items(&ctx.db, &[item.id]).await?;
 
     let item_kind_name = item_kinds.get_cloned(&item.inventory_item_kind_id, |kind| &kind.name);
     let checklist_name = checklists.get_cloned(&item.checklist_id, |c| &c.name);
     let interval_name = intervals.get_cloned(&item.interval_id, |i| &i.code);
+    let metadata_values = metadata_values_by_item_id
+        .get(&item.id)
+        .cloned()
+        .unwrap_or_default();
+    let metadata = metadata_fields_by_kind_id
+        .get(&item.inventory_item_kind_id)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|field| ItemMetadataValueView {
+            name: field.name,
+            value: metadata_values.get(&field.id).cloned().unwrap_or_default(),
+        })
+        .collect::<Vec<_>>();
 
     let checks = inventory_item_checks::Entity::find()
         .filter(InventoryItemChecksColumn::InventoryItemId.eq(item.id))
@@ -259,6 +673,7 @@ pub async fn show_item_details(
             "item_kind_name": item_kind_name,
             "checklist_name": checklist_name,
             "interval_name": interval_name,
+            "metadata": metadata,
             "checks": rendered_checks,
         }),
     )
@@ -273,6 +688,9 @@ pub async fn list_item_kinds(
     let checklists = ctx.get_checklists()?;
     let intervals = ctx.get_intervals()?;
     let expiries = ctx.get_expiries()?;
+    let kind_ids = item_kinds.keys().copied().collect::<Vec<_>>();
+    let metadata_field_names_by_kind_id =
+        load_metadata_field_names_by_kind_ids(&ctx.db, kind_ids).await?;
 
     let rows = item_kinds
         .into_values()
@@ -280,6 +698,10 @@ pub async fn list_item_kinds(
             default_checklist_name: checklists.get_cloned(&kind.default_checklist_id, |c| &c.name),
             default_interval_code: intervals.get_cloned(&kind.default_interval_id, |i| &i.code),
             default_expiry_code: expiries.get_cloned(&kind.default_expiry_id, |e| &e.code),
+            metadata_fields: metadata_field_names_by_kind_id
+                .get(&kind.id)
+                .cloned()
+                .unwrap_or_default(),
             kind,
         })
         .collect::<Vec<_>>();
@@ -288,6 +710,39 @@ pub async fn list_item_kinds(
         &v,
         "inventory/item_kinds.html",
         data!({ "item_kinds": rows }),
+    )
+}
+
+#[debug_handler]
+pub async fn show_item_kind(
+    ViewEngine(v): ViewEngine<TeraView>,
+    State(ctx): State<AppContext>,
+    Path(id): Path<i32>,
+) -> Result<Response> {
+    let Some(kind) = inventory_item_kinds::Entity::find_by_id(id)
+        .one(&ctx.db)
+        .await?
+    else {
+        return Err(loco_rs::Error::NotFound);
+    };
+
+    let checklists = ctx.get_checklists()?;
+    let intervals = ctx.get_intervals()?;
+    let expiries = ctx.get_expiries()?;
+    let metadata_fields = load_metadata_field_names_by_kind_ids(&ctx.db, vec![id]).await?;
+
+    let detail = InventoryItemKindDetailView {
+        default_checklist_name: checklists.get_cloned(&kind.default_checklist_id, |c| &c.name),
+        default_interval_code: intervals.get_cloned(&kind.default_interval_id, |i| &i.code),
+        default_expiry_code: expiries.get_cloned(&kind.default_expiry_id, |e| &e.code),
+        metadata_fields: metadata_fields.get(&id).cloned().unwrap_or_default(),
+        kind,
+    };
+
+    format::render().view(
+        &v,
+        "inventory/item_kind_details.html",
+        data!({ "item_kind": detail }),
     )
 }
 
@@ -307,12 +762,16 @@ pub struct AddItemPostParams {
     pub interval_id: i32,
     pub item_kind_id: i32,
     pub expiry: Option<String>,
+    #[serde(default, alias = "metadata_field_ids[]")]
+    pub metadata_field_ids: Option<Vec<i32>>,
+    #[serde(default, alias = "metadata_values[]")]
+    pub metadata_values: Option<Vec<String>>,
 }
 
 #[debug_handler]
 pub async fn add_item_post(
     State(ctx): State<AppContext>,
-    Form(params): Form<AddItemPostParams>,
+    HtmlForm(params): HtmlForm<AddItemPostParams>,
 ) -> Result<Response> {
     let AddItemPostParams {
         name,
@@ -321,7 +780,13 @@ pub async fn add_item_post(
         interval_id,
         item_kind_id,
         expiry,
+        metadata_field_ids,
+        metadata_values,
     } = params;
+    if !ctx.get_item_kinds()?.contains_key(&item_kind_id) {
+        return Err(loco_rs::Error::BadRequest("Unknown item kind".to_string()));
+    }
+    let submitted_metadata_values = metadata_values_from_form(metadata_field_ids, metadata_values);
 
     let expiry = if let Some(expiry) = expiry {
         let naive_date = chrono::NaiveDate::parse_from_str(&expiry, "%Y-%m-%d")
@@ -344,7 +809,18 @@ pub async fn add_item_post(
         expiry: ActiveValue::set(expiry),
         ..Default::default()
     };
-    item.insert(&ctx.db).await?;
+    let created_item = item.insert(&ctx.db).await?;
+    let metadata_fields = load_metadata_fields_by_kind_ids(&ctx.db, vec![item_kind_id]).await?;
+    replace_metadata_values_for_item_by_field_id(
+        &ctx.db,
+        created_item.id,
+        &metadata_fields
+            .get(&item_kind_id)
+            .cloned()
+            .unwrap_or_default(),
+        &submitted_metadata_values,
+    )
+    .await?;
     format::redirect("/inventory/list")
 }
 
@@ -365,11 +841,12 @@ pub async fn edit_item(
 pub async fn edit_item_post(
     State(ctx): State<AppContext>,
     Path(id): Path<i32>,
-    Form(params): Form<AddItemPostParams>,
+    HtmlForm(params): HtmlForm<AddItemPostParams>,
 ) -> Result<Response> {
     let Some(existing) = inventory_items::Entity::find_by_id(id).one(&ctx.db).await? else {
         return Err(loco_rs::Error::NotFound);
     };
+    let existing_item_id = existing.id;
 
     let AddItemPostParams {
         name,
@@ -378,7 +855,13 @@ pub async fn edit_item_post(
         interval_id,
         item_kind_id,
         expiry,
+        metadata_field_ids,
+        metadata_values,
     } = params;
+    if !ctx.get_item_kinds()?.contains_key(&item_kind_id) {
+        return Err(loco_rs::Error::BadRequest("Unknown item kind".to_string()));
+    }
+    let submitted_metadata_values = metadata_values_from_form(metadata_field_ids, metadata_values);
 
     let expiry = if let Some(expiry) = expiry {
         let naive_date = chrono::NaiveDate::parse_from_str(&expiry, "%Y-%m-%d")
@@ -400,6 +883,17 @@ pub async fn edit_item_post(
     item.interval_id = ActiveValue::set(interval_id);
     item.expiry = ActiveValue::set(expiry);
     item.update(&ctx.db).await?;
+    let metadata_fields = load_metadata_fields_by_kind_ids(&ctx.db, vec![item_kind_id]).await?;
+    replace_metadata_values_for_item_by_field_id(
+        &ctx.db,
+        existing_item_id,
+        &metadata_fields
+            .get(&item_kind_id)
+            .cloned()
+            .unwrap_or_default(),
+        &submitted_metadata_values,
+    )
+    .await?;
 
     format::redirect(&format!("/inventory/item/{id}"))
 }
@@ -639,48 +1133,131 @@ pub async fn remove_item(State(ctx): State<AppContext>, Path(id): Path<i32>) -> 
 }
 
 #[debug_handler]
-pub async fn add_item_kind_get(
+pub async fn add_item_kind_new(
     ViewEngine(v): ViewEngine<TeraView>,
     State(ctx): State<AppContext>,
 ) -> Result<Response> {
-    use crate::models::{checklists, expiries, intervals};
-    let checklists = checklists::Entity::find().all(&ctx.db).await?;
-    let expiries = expiries::Entity::find().all(&ctx.db).await?;
-    let intervals = intervals::Entity::find().all(&ctx.db).await?;
-    tracing::info!("loaded checklists: {checklists:?}");
-    format::render().view(
-        &v,
-        "inventory/add_item_kind.html",
-        data!({
-            "checklists": checklists,
-            "expiries": expiries,
-            "intervals": intervals,
-        }),
-    )
+    render_item_kind_form(&v, &ctx, None, "/inventory/item_kinds/new".to_string()).await
 }
 
 #[derive(serde::Deserialize)]
 pub struct AddItemKindPostParams {
     pub name: String,
+    pub test_standard: String,
     pub default_checklist_id: i32,
     pub default_interval_id: i32,
     pub default_expiry_id: i32,
+    #[serde(default, alias = "metadata_field_names[]")]
+    pub metadata_field_names: Option<Vec<String>>,
 }
 
 #[debug_handler]
-pub async fn add_item_kind_post(
+pub async fn add_item_kind_new_post(
     State(ctx): State<AppContext>,
-    Form(params): Form<AddItemKindPostParams>,
+    HtmlForm(params): HtmlForm<AddItemKindPostParams>,
 ) -> Result<Response> {
+    let AddItemKindPostParams {
+        name,
+        test_standard,
+        default_checklist_id,
+        default_interval_id,
+        default_expiry_id,
+        metadata_field_names,
+    } = params;
+    let metadata_field_names = inventory_item_kind_metadata_fields::normalize_metadata_field_names(
+        metadata_field_names.unwrap_or_default(),
+    );
+    let trx = ctx.db.begin().await?;
     let item = crate::models::inventory_item_kinds::ActiveModel {
-        name: ActiveValue::set(params.name),
-        default_checklist_id: ActiveValue::set(params.default_checklist_id),
-        default_interval_id: ActiveValue::set(params.default_interval_id),
-        default_expiry_id: ActiveValue::set(params.default_expiry_id),
+        name: ActiveValue::set(name.trim().to_string()),
+        test_standard: ActiveValue::set(test_standard.trim().to_string()),
+        default_checklist_id: ActiveValue::set(default_checklist_id),
+        default_interval_id: ActiveValue::set(default_interval_id),
+        default_expiry_id: ActiveValue::set(default_expiry_id),
         ..Default::default()
     };
-    item.insert(&ctx.db).await?;
+    let created_kind = item.insert(&trx).await?;
+    replace_metadata_fields_for_kind(&trx, created_kind.id, &metadata_field_names).await?;
+    trx.commit().await?;
     refresh_item_kinds_cache(&ctx).await?;
+    format::redirect("/inventory/item_kinds")
+}
+
+#[debug_handler]
+pub async fn edit_item_kind(
+    ViewEngine(v): ViewEngine<TeraView>,
+    State(ctx): State<AppContext>,
+    Path(id): Path<i32>,
+) -> Result<Response> {
+    let Some(item_kind) = inventory_item_kinds::Entity::find_by_id(id)
+        .one(&ctx.db)
+        .await?
+    else {
+        return Err(loco_rs::Error::NotFound);
+    };
+
+    render_item_kind_form(
+        &v,
+        &ctx,
+        Some(item_kind),
+        format!("/inventory/item_kinds/{id}/edit"),
+    )
+    .await
+}
+
+#[debug_handler]
+pub async fn edit_item_kind_post(
+    State(ctx): State<AppContext>,
+    Path(id): Path<i32>,
+    HtmlForm(params): HtmlForm<AddItemKindPostParams>,
+) -> Result<Response> {
+    let Some(existing) = inventory_item_kinds::Entity::find_by_id(id)
+        .one(&ctx.db)
+        .await?
+    else {
+        return Err(loco_rs::Error::NotFound);
+    };
+
+    let AddItemKindPostParams {
+        name,
+        test_standard,
+        default_checklist_id,
+        default_interval_id,
+        default_expiry_id,
+        metadata_field_names,
+    } = params;
+    let metadata_field_names = inventory_item_kind_metadata_fields::normalize_metadata_field_names(
+        metadata_field_names.unwrap_or_default(),
+    );
+    let item_ids = inventory_items::Entity::find()
+        .filter(InventoryItemsColumn::InventoryItemKindId.eq(id))
+        .all(&ctx.db)
+        .await?
+        .into_iter()
+        .map(|item| item.id)
+        .collect::<Vec<_>>();
+    let existing_metadata_values_by_item_id =
+        load_metadata_value_maps_for_items(&ctx.db, &item_ids).await?;
+    let trx = ctx.db.begin().await?;
+    let mut item_kind: inventory_item_kinds::ActiveModel = existing.into();
+    item_kind.name = ActiveValue::set(name.trim().to_string());
+    item_kind.test_standard = ActiveValue::set(test_standard.trim().to_string());
+    item_kind.default_checklist_id = ActiveValue::set(default_checklist_id);
+    item_kind.default_interval_id = ActiveValue::set(default_interval_id);
+    item_kind.default_expiry_id = ActiveValue::set(default_expiry_id);
+    item_kind.update(&trx).await?;
+    replace_metadata_fields_for_kind(&trx, id, &metadata_field_names).await?;
+    rebuild_metadata_values_for_kind_items(
+        &trx,
+        id,
+        &item_ids,
+        existing_metadata_values_by_item_id,
+    )
+    .await?;
+    trx.commit().await?;
+
+    refresh_item_kinds_cache(&ctx).await?;
+
     format::redirect("/inventory/item_kinds")
 }
 
@@ -723,9 +1300,43 @@ pub fn routes() -> Routes {
         .add("/item/{id}/check", post(submit_item_check))
         .add("/item/{id}/edit", post(edit_item_post))
         .add("/item/{id}", delete(remove_item))
-        .add("/add_item_kind", get(add_item_kind_get))
-        .add("/add_item_kind", post(add_item_kind_post))
         .add("/item_kinds", get(list_item_kinds))
+        .add("/item_kinds/{id}", get(show_item_kind))
+        .add("/item_kinds/new", get(add_item_kind_new))
+        .add("/item_kinds/new", post(add_item_kind_new_post))
+        .add("/item_kinds/{id}/edit", get(edit_item_kind))
+        .add("/item_kinds/{id}/edit", post(edit_item_kind_post))
         .add("/item_kinds/{id}", delete(remove_item_kind))
         .add("/list", get(list))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AddItemKindPostParams;
+
+    #[test]
+    fn deserializes_single_metadata_field_name() {
+        let params = serde_urlencoded::from_str::<AddItemKindPostParams>(
+            "name=Device&default_checklist_id=1&default_interval_id=1&default_expiry_id=1&metadata_field_names=manufacturer",
+        )
+        .unwrap();
+
+        assert_eq!(
+            params.metadata_field_names,
+            Some(vec!["manufacturer".to_string()])
+        );
+    }
+
+    #[test]
+    fn deserializes_repeated_metadata_field_names() {
+        let params = serde_urlencoded::from_str::<AddItemKindPostParams>(
+            "name=Device&default_checklist_id=1&default_interval_id=1&default_expiry_id=1&metadata_field_names=manufacturer&metadata_field_names=serialnr",
+        )
+        .unwrap();
+
+        assert_eq!(
+            params.metadata_field_names,
+            Some(vec!["manufacturer".to_string(), "serialnr".to_string()])
+        );
+    }
 }

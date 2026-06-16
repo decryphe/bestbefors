@@ -1,10 +1,19 @@
 <!doctype html>
 {% set lang_code = current_lang | default(value="en-US") %}
+{% set is_edit_flag = is_edit | default(value=false) %}
+{% if is_edit_flag %}
+    {% set page_title = t(key="gui-inventory-item_kind-edit_title", lang=lang_code) %}
+    {% set submit_label = t(key="gui-inventory-item_kind-submit_edit", lang=lang_code) %}
+{% else %}
+    {% set page_title = t(key="gui-inventory-item_kind-add_title", lang=lang_code) %}
+    {% set submit_label = t(key="gui-inventory-item_kind-submit_add", lang=lang_code) %}
+{% endif %}
 <html lang="{{ lang_code }}">
-    {% include "inc_head.html" %} {% include "inc_navbar.html" %}
+    {% include "inc_head.html" %}
+    {% include "inc_navbar.html" %}
     <body class="container">
-        <h1>{{ t(key="gui-inventory-item_kind-add_title", lang=lang_code) }}</h1>
-        <form method="POST">
+        <h1>{{ page_title }}</h1>
+        <form method="POST" action="{{ form_action | default(value='/inventory/item_kinds/new') }}">
             <div class="mb-3">
                 <label for="itemKindName" class="form-label">
                     {{ t(key="gui-inventory-item_kind-name_label", lang=lang_code) }}
@@ -14,6 +23,21 @@
                     class="form-control"
                     id="itemKindName"
                     name="name"
+                    value="{% if is_edit_flag %}{{ item_kind.name }}{% endif %}"
+                />
+            </div>
+
+            <div class="mb-3">
+                <label for="itemKindTestStandard" class="form-label">
+                    {{ t(key="gui-inventory-item_kind-test_standard", lang=lang_code) }}
+                </label>
+                <input
+                    type="text"
+                    class="form-control"
+                    id="itemKindTestStandard"
+                    name="test_standard"
+                    value="{% if is_edit_flag %}{{ item_kind.test_standard }}{% endif %}"
+                    placeholder="{{ t(key='gui-inventory-item_kind-test_standard_placeholder', lang=lang_code) }}"
                 />
             </div>
 
@@ -26,15 +50,18 @@
                     id="itemChecklist"
                     name="default_checklist_id"
                 >
-                    {% for checklist in checklists %} {% if loop.first %}
-                    <option value="{{ checklist.id }}" selected>
+                    {% for checklist in checklists %}
+                    <option
+                        value="{{ checklist.id }}"
+                        {% if is_edit_flag and item_kind.default_checklist_id == checklist.id %}
+                        selected
+                        {% elif not is_edit_flag and loop.first %}
+                        selected
+                        {% endif %}
+                    >
                         {{ checklist.name }}
                     </option>
-                    {% else %}
-                    <option value="{{ checklist.id }}">
-                        {{ checklist.name }}
-                    </option>
-                    {% endif %} {% endfor %}
+                    {% endfor %}
                 </select>
             </div>
 
@@ -47,15 +74,18 @@
                     id="itemCheckInterval"
                     name="default_interval_id"
                 >
-                    {% for interval in intervals %} {% if loop.first %}
-                    <option value="{{ interval.id }}" selected>
+                    {% for interval in intervals %}
+                    <option
+                        value="{{ interval.id }}"
+                        {% if is_edit_flag and item_kind.default_interval_id == interval.id %}
+                        selected
+                        {% elif not is_edit_flag and loop.first %}
+                        selected
+                        {% endif %}
+                    >
                         {{ t(key=interval.code, lang=lang_code) }}
                     </option>
-                    {% else %}
-                    <option value="{{ interval.id }}">
-                        {{ t(key=interval.code, lang="de-DE") }}
-                    </option>
-                    {% endif %} {% endfor %}
+                    {% endfor %}
                 </select>
             </div>
 
@@ -68,22 +98,98 @@
                     id="itemExpiry"
                     name="default_expiry_id"
                 >
-                    {% for expiry in expiries %} {% if loop.first %}
-                    <option value="{{ expiry.id }}" selected>
+                    {% for expiry in expiries %}
+                    <option
+                        value="{{ expiry.id }}"
+                        {% if is_edit_flag and item_kind.default_expiry_id == expiry.id %}
+                        selected
+                        {% elif not is_edit_flag and loop.first %}
+                        selected
+                        {% endif %}
+                    >
                         {{ t(key=expiry.code, lang=lang_code) }}
                     </option>
-                    {% else %}
-                    <option value="{{ expiry.id }}">
-                        {{ t(key=expiry.code, lang="de-DE") }}
-                    </option>
-                    {% endif %} {% endfor %}
+                    {% endfor %}
                 </select>
             </div>
 
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h2 class="h5 mb-1">
+                                {{ t(key="gui-inventory-item_kind-metadata_fields", lang=lang_code) }}
+                            </h2>
+                            <p class="text-muted mb-0">
+                                {{ t(key="gui-inventory-item_kind-metadata_help", lang=lang_code) }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            onclick="addMetadataField()"
+                        >
+                            {{ t(key="gui-inventory-item_kind-metadata_add_field", lang=lang_code) }}
+                        </button>
+                    </div>
+                    <div id="metadataFields" class="vstack gap-2"></div>
+                    <p id="metadataFieldsEmpty" class="text-muted mb-0">
+                        {{ t(key="gui-inventory-item_kind-metadata_empty", lang=lang_code) }}
+                    </p>
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary">
-                {{ t(key="gui-common-submit", lang=lang_code) }}
+                {{ submit_label }}
             </button>
         </form>
+        <script>
+            const initialMetadataFields = {{ metadata_fields | default(value=[]) | json_encode() | safe }};
+            const metadataFieldsContainer = document.getElementById("metadataFields");
+            const metadataFieldsEmpty = document.getElementById("metadataFieldsEmpty");
+
+            function syncMetadataFieldState() {
+                metadataFieldsEmpty.style.display =
+                    metadataFieldsContainer.children.length === 0 ? "block" : "none";
+            }
+
+            function addMetadataField(field = { name: "" }) {
+                const wrapper = document.createElement("div");
+                wrapper.className = "input-group";
+
+                const input = document.createElement("input");
+                input.type = "text";
+                input.name = "metadata_field_names";
+                input.className = "form-control";
+                input.placeholder = "{{ t(key='gui-inventory-item_kind-metadata_placeholder', lang=lang_code) }}";
+                input.value = field.name || "";
+
+                const removeButton = document.createElement("button");
+                removeButton.type = "button";
+                removeButton.className = "btn btn-outline-danger";
+                removeButton.textContent = "{{ t(key='gui-common-remove', lang=lang_code) }}";
+                removeButton.addEventListener("click", function () {
+                    wrapper.remove();
+                    syncMetadataFieldState();
+                });
+
+                wrapper.appendChild(input);
+                wrapper.appendChild(removeButton);
+                metadataFieldsContainer.appendChild(wrapper);
+                syncMetadataFieldState();
+            }
+
+            window.addEventListener("DOMContentLoaded", function () {
+                if (initialMetadataFields.length === 0) {
+                    syncMetadataFieldState();
+                    return;
+                }
+
+                for (const field of initialMetadataFields) {
+                    addMetadataField(field);
+                }
+            });
+        </script>
         <div class="row">
             <div class="col"></div>
         </div>

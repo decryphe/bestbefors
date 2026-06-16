@@ -11,12 +11,16 @@ Bestbefors is a Loco-based Rust web app for tracking expiration dates, whether t
 - `cargo build --release` — produces the optimized binary used for staging/prod.
 - `cargo test` — runs unit tests (`src/*`) and integration tests (`tests/*`).
 - `cargo fmt && cargo clippy -- -D warnings` — enforces formatting and lints; required before opening a PR.
+- `cargo loco generate migration <name> ...` — preferred way to create new migrations before filling in the generated file.
 
 ## Coding Style & Naming Conventions
 Use 4-space indentation and snake_case file names (`src/services/user_service.rs`). Public types, enums, and traits are UpperCamelCase; private helpers remain snake_case. Favor `anyhow::Result<T>` for plumbing code and custom error enums for domain-level validation. Keep controller methods thin by delegating to service modules, and return HTTP-safe errors with meaningful messages. Document non-obvious logic with short comments rather than long narratives.
 
 ## Testing Guidelines
 Colocate fast unit tests in the same file under `#[cfg(test)] mod tests`. Use `tests/*.rs` for end-to-end flows that boot the Loco app or hit the database. Every feature should add a happy-path integration test plus unit coverage for edge conditions (validation, error mapping, timeouts). Name tests after behavior (`returns_401_for_expired_token`). When touching migrations, assert schema expectations in a fresh SQLite database to avoid regressions.
+
+## Data Modeling Preferences
+For structured, configurable data such as inventory item metadata, prefer relational tables over serialized arrays or JSON/text blobs when the values need to be queried, edited individually, or kept consistent across related records.
 
 ## Commit & Pull Request Guidelines
 Commits should have a concise, imperative subject (`Add shelf-life reminder job`) and optional wrapped body describing context or follow-ups. Keep unrelated work out of the same commit; it simplifies review and `git bisect`. Pull requests need: summary, testing log (commands + outcomes), linked issue, and screenshots or cURL transcripts for API/UI changes. Draft PRs are fine for feedback but must already pass fmt/clippy/test.

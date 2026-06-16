@@ -8,7 +8,7 @@
             <h1 class="mb-0">
                 {{ t(key="gui-inventory-item_kind-title", lang=lang_code) }}
             </h1>
-            <a class="btn btn-primary" href="/inventory/add_item_kind">
+            <a class="btn btn-primary" href="/inventory/item_kinds/new">
                 {{ t(key="gui-inventory-item_kind-add_button", lang=lang_code) }}
             </a>
         </div>
@@ -23,11 +23,13 @@
                                     <tr>
                                         <th>{{ t(key="gui-inventory-list-id", lang=lang_code) }}</th>
                                         <th>{{ t(key="gui-inventory-list-name", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-item_kind-test_standard", lang=lang_code) }}</th>
                                         <th>{{ t(key="gui-inventory-item_kind-created", lang=lang_code) }}</th>
                                         <th>{{ t(key="gui-inventory-item_kind-updated", lang=lang_code) }}</th>
                                         <th>{{ t(key="gui-inventory-item_kind-default_checklist", lang=lang_code) }}</th>
                                         <th>{{ t(key="gui-inventory-item_kind-default_interval", lang=lang_code) }}</th>
                                         <th>{{ t(key="gui-inventory-item_kind-default_expiry", lang=lang_code) }}</th>
+                                        <th>{{ t(key="gui-inventory-item_kind-metadata_fields", lang=lang_code) }}</th>
                                         <th class="text-end">{{ t(key="gui-common-actions", lang=lang_code) }}</th>
                                     </tr>
                                 </thead>
@@ -35,7 +37,18 @@
                                     {% for row in item_kinds %}
                                     <tr>
                                         <td>{{ row.kind.id }}</td>
-                                        <td>{{ row.kind.name }}</td>
+                                        <td>
+                                            <a href="/inventory/item_kinds/{{ row.kind.id }}">
+                                                {{ row.kind.name }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {% if row.kind.test_standard %}
+                                                {{ row.kind.test_standard }}
+                                            {% else %}
+                                                {{ t(key="gui-common-not_available", lang=lang_code) }}
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             <span data-utc="{{ row.kind.created_at }}">
                                                 {{ row.kind.created_at }}
@@ -55,7 +68,28 @@
                                         <td>
                                             {{ row.default_expiry_code | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
                                         </td>
+                                        <td>
+                                            {% if row.metadata_fields | length > 0 %}
+                                                {% for field_name in row.metadata_fields %}
+                                                <span class="badge text-bg-light border me-1">{{ field_name }}</span>
+                                                {% endfor %}
+                                            {% else %}
+                                                {{ t(key="gui-common-not_available", lang=lang_code) }}
+                                            {% endif %}
+                                        </td>
                                         <td class="text-end">
+                                            <a
+                                                class="btn btn-outline-secondary btn-sm"
+                                                href="/inventory/item_kinds/{{ row.kind.id }}"
+                                            >
+                                                {{ t(key="gui-common-details", lang=lang_code) }}
+                                            </a>
+                                            <a
+                                                class="btn btn-outline-primary btn-sm"
+                                                href="/inventory/item_kinds/{{ row.kind.id }}/edit"
+                                            >
+                                                {{ t(key="gui-common-edit", lang=lang_code) }}
+                                            </a>
                                             <button
                                                 class="btn btn-outline-danger btn-sm"
                                                 type="button"

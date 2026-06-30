@@ -1,3 +1,7 @@
+use axum::{
+    http::{header, HeaderValue},
+    response::IntoResponse,
+};
 use axum_extra::extract::Form as HtmlForm;
 use chrono::Utc;
 use loco_rs::prelude::*;
@@ -24,6 +28,9 @@ use crate::{
         intervals, inventory_item_check_steps, inventory_item_checks,
         inventory_item_kind_metadata_fields, inventory_item_kinds, inventory_item_metadata_values,
         inventory_items,
+    },
+    reports::single_item_history::{
+        self, ReportCheck, ReportField, ReportItem, ReportStep, SingleItemHistoryReport,
     },
 };
 
@@ -68,6 +75,13 @@ struct InventoryListItem {
     item: inventory_items::Model,
     kind_name: Option<String>,
     serial: Option<String>,
+    metadata_cells: Vec<String>,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct InventoryMetadataColumn {
+    key: String,
+    name: String,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -80,6 +94,15 @@ struct MetadataFieldDefinition {
 struct ItemMetadataValueView {
     name: String,
     value: String,
+}
+
+struct ItemDetailsData {
+    item: inventory_items::Model,
+    item_kind_name: Option<String>,
+    checklist_name: Option<String>,
+    interval_name: Option<String>,
+    metadata: Vec<ItemMetadataValueView>,
+    checks: Vec<ItemCheckView>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -354,6 +377,71 @@ where
     Ok(values_by_item_id)
 }
 
+fn metadata_column_key(name: &str) -> String {
+    name.trim().to_lowercase()
+}
+
+fn build_inventory_metadata_columns(
+    items: &[inventory_items::Model],
+    metadata_fields_by_kind_id: &HashMap<i32, Vec<inventory_item_kind_metadata_fields::Model>>,
+) -> Vec<InventoryMetadataColumn> {
+    let mut columns = Vec::new();
+    let mut seen = HashMap::<String, usize>::new();
+
+    for item in items {
+        let Some(fields) = metadata_fields_by_kind_id.get(&item.inventory_item_kind_id) else {
+            continue;
+        };
+
+        for field in fields {
+            let key = metadata_column_key(&field.name);
+            if key.is_empty() || seen.contains_key(&key) {
+                continue;
+            }
+
+            seen.insert(key.clone(), columns.len());
+            columns.push(InventoryMetadataColumn {
+                key,
+                name: field.name.clone(),
+            });
+        }
+    }
+
+    columns
+}
+
+fn build_inventory_metadata_values_by_column_key(
+    metadata_fields: &[inventory_item_kind_metadata_fields::Model],
+    metadata_values_by_field_id: &HashMap<i32, String>,
+) -> HashMap<String, String> {
+    let mut values_by_column_key = HashMap::<String, Vec<String>>::new();
+
+    for field in metadata_fields {
+        let key = metadata_column_key(&field.name);
+        if key.is_empty() {
+            continue;
+        }
+
+        let Some(value) = metadata_values_by_field_id.get(&field.id) else {
+            continue;
+        };
+        let value = value.trim();
+        if value.is_empty() {
+            continue;
+        }
+
+        let column_values = values_by_column_key.entry(key).or_default();
+        if !column_values.iter().any(|existing| existing == value) {
+            column_values.push(value.to_string());
+        }
+    }
+
+    values_by_column_key
+        .into_iter()
+        .map(|(key, values)| (key, values.join(", ")))
+        .collect()
+}
+
 fn metadata_values_from_form(
     metadata_field_ids: Option<Vec<i32>>,
     metadata_values: Option<Vec<String>>,
@@ -561,18 +649,60 @@ pub async fn list(
                 true
             }
         })
-        .map(|item| InventoryListItem {
-            kind_name: item_kinds.get_cloned(&item.inventory_item_kind_id, |kind| &kind.name),
-            serial: item.serial_number.clone(),
-            item,
+        .collect::<Vec<_>>();
+
+    let item_ids = inventory.iter().map(|item| item.id).collect::<Vec<_>>();
+    let kind_ids = inventory
+        .iter()
+        .map(|item| item.inventory_item_kind_id)
+        .collect::<Vec<_>>();
+    let metadata_fields_by_kind_id = load_metadata_fields_by_kind_ids(&ctx.db, kind_ids).await?;
+    let metadata_values_by_item_id =
+        load_metadata_value_maps_by_field_id_for_items(&ctx.db, &item_ids).await?;
+    let metadata_columns =
+        build_inventory_metadata_columns(&inventory, &metadata_fields_by_kind_id);
+    let empty_metadata_values = HashMap::new();
+
+    let inventory = inventory
+        .into_iter()
+        .map(|item| {
+            let item_metadata_values = metadata_values_by_item_id
+                .get(&item.id)
+                .unwrap_or(&empty_metadata_values);
+            let metadata_values_by_column_key = metadata_fields_by_kind_id
+                .get(&item.inventory_item_kind_id)
+                .map(|metadata_fields| {
+                    build_inventory_metadata_values_by_column_key(
+                        metadata_fields,
+                        item_metadata_values,
+                    )
+                })
+                .unwrap_or_default();
+
+            InventoryListItem {
+                kind_name: item_kinds.get_cloned(&item.inventory_item_kind_id, |kind| &kind.name),
+                serial: item.serial_number.clone(),
+                metadata_cells: metadata_columns
+                    .iter()
+                    .map(|column| {
+                        metadata_values_by_column_key
+                            .get(&column.key)
+                            .cloned()
+                            .unwrap_or_default()
+                    })
+                    .collect(),
+                item,
+            }
         })
         .collect::<Vec<_>>();
+
     format::render().view(
         &v,
         "inventory/list.html",
         data!({
             "inventory": inventory,
             "inventory_search": search_term,
+            "metadata_columns": metadata_columns,
         }),
     )
 }
@@ -583,6 +713,57 @@ pub async fn show_item_details(
     State(ctx): State<AppContext>,
     Path(id): Path<i32>,
 ) -> Result<Response> {
+    let details = load_item_details_data(&ctx, id).await?;
+    let ItemDetailsData {
+        item,
+        item_kind_name,
+        checklist_name,
+        interval_name,
+        metadata,
+        checks,
+    } = details;
+
+    format::render().view(
+        &v,
+        "inventory/item_details.html",
+        data!({
+            "item": item,
+            "item_kind_name": item_kind_name,
+            "checklist_name": checklist_name,
+            "interval_name": interval_name,
+            "metadata": metadata,
+            "checks": checks,
+        }),
+    )
+}
+
+#[debug_handler]
+pub async fn download_item_report(
+    State(ctx): State<AppContext>,
+    Path(id): Path<i32>,
+) -> Result<Response> {
+    let details = load_item_details_data(&ctx, id).await?;
+    let report = build_single_item_history_report(details);
+    let pdf = single_item_history::render_pdf(&report)?;
+    let filename = format!("inventory-item-{id}-history.pdf");
+    let content_disposition =
+        HeaderValue::from_str(&format!("attachment; filename=\"{filename}\""))
+            .map_err(|_| loco_rs::Error::InternalServerError)?;
+
+    Ok((
+        [
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/pdf"),
+            ),
+            (header::CONTENT_DISPOSITION, content_disposition),
+        ],
+        pdf,
+    )
+        .into_response())
+}
+
+async fn load_item_details_data(ctx: &AppContext, id: i32) -> Result<ItemDetailsData> {
     let Some(item) = inventory_items::Entity::find_by_id(id).one(&ctx.db).await? else {
         return Err(loco_rs::Error::NotFound);
     };
@@ -665,18 +846,74 @@ pub async fn show_item_details(
         rendered_checks.push(rendered);
     }
 
-    format::render().view(
-        &v,
-        "inventory/item_details.html",
-        data!({
-            "item": item,
-            "item_kind_name": item_kind_name,
-            "checklist_name": checklist_name,
-            "interval_name": interval_name,
-            "metadata": metadata,
-            "checks": rendered_checks,
-        }),
-    )
+    Ok(ItemDetailsData {
+        item,
+        item_kind_name,
+        checklist_name,
+        interval_name,
+        metadata,
+        checks: rendered_checks,
+    })
+}
+
+fn build_single_item_history_report(details: ItemDetailsData) -> SingleItemHistoryReport {
+    let ItemDetailsData {
+        item,
+        item_kind_name,
+        checklist_name,
+        interval_name,
+        metadata,
+        checks,
+    } = details;
+
+    SingleItemHistoryReport {
+        title: "Inventory Item Check History".to_string(),
+        generated_at: single_item_history::format_generated_at(Utc::now()),
+        report_id: format!("ITEM-{}", item.id),
+        item: ReportItem {
+            name: item.name,
+            serial_number: item.serial_number,
+            item_kind: item_kind_name,
+            checklist: checklist_name,
+            interval: interval_name.map(|code| single_item_history::humanize_code(&code)),
+            created_at: single_item_history::format_timestamp(item.created_at),
+            updated_at: single_item_history::format_timestamp(item.updated_at),
+            last_checked_at: item
+                .last_checked_at
+                .map(single_item_history::format_timestamp),
+            expiry: item.expiry.map(single_item_history::format_timestamp),
+        },
+        metadata: metadata
+            .into_iter()
+            .map(|entry| ReportField {
+                label: entry.name,
+                value: entry.value.clean(),
+            })
+            .collect(),
+        checks: checks
+            .into_iter()
+            .map(|check| ReportCheck {
+                checked_at: single_item_history::format_timestamp(check.check.checked_at),
+                checked_by: check.checked_by,
+                overall_result: check
+                    .result_code
+                    .map(|code| single_item_history::humanize_code(&code)),
+                notes: check.check.notes,
+                steps: check
+                    .steps
+                    .into_iter()
+                    .map(|step| ReportStep {
+                        position: step.position,
+                        name: step.name,
+                        result: step
+                            .result_code
+                            .map(|code| single_item_history::humanize_code(&code)),
+                        notes: step.notes,
+                    })
+                    .collect(),
+            })
+            .collect(),
+    }
 }
 
 #[debug_handler]
@@ -1140,15 +1377,118 @@ pub async fn add_item_kind_new(
     render_item_kind_form(&v, &ctx, None, "/inventory/item_kinds/new".to_string()).await
 }
 
-#[derive(serde::Deserialize)]
 pub struct AddItemKindPostParams {
     pub name: String,
     pub test_standard: String,
     pub default_checklist_id: i32,
     pub default_interval_id: i32,
     pub default_expiry_id: i32,
-    #[serde(default, alias = "metadata_field_names[]")]
     pub metadata_field_names: Option<Vec<String>>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum OneOrManyStrings {
+    One(String),
+    Many(Vec<String>),
+}
+
+impl<'de> serde::Deserialize<'de> for AddItemKindPostParams {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct AddItemKindPostParamsVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for AddItemKindPostParamsVisitor {
+            type Value = AddItemKindPostParams;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("application/x-www-form-urlencoded item kind params")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut name = None;
+                let mut test_standard = None;
+                let mut default_checklist_id = None;
+                let mut default_interval_id = None;
+                let mut default_expiry_id = None;
+                let mut metadata_field_names = Vec::new();
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "name" => {
+                            if name.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name = Some(map.next_value()?);
+                        }
+                        "test_standard" => {
+                            if test_standard.is_some() {
+                                return Err(serde::de::Error::duplicate_field("test_standard"));
+                            }
+                            test_standard = Some(map.next_value()?);
+                        }
+                        "default_checklist_id" => {
+                            if default_checklist_id.is_some() {
+                                return Err(serde::de::Error::duplicate_field(
+                                    "default_checklist_id",
+                                ));
+                            }
+                            default_checklist_id = Some(map.next_value()?);
+                        }
+                        "default_interval_id" => {
+                            if default_interval_id.is_some() {
+                                return Err(serde::de::Error::duplicate_field(
+                                    "default_interval_id",
+                                ));
+                            }
+                            default_interval_id = Some(map.next_value()?);
+                        }
+                        "default_expiry_id" => {
+                            if default_expiry_id.is_some() {
+                                return Err(serde::de::Error::duplicate_field("default_expiry_id"));
+                            }
+                            default_expiry_id = Some(map.next_value()?);
+                        }
+                        "metadata_field_names" | "metadata_field_names[]" => {
+                            match map.next_value::<OneOrManyStrings>()? {
+                                OneOrManyStrings::One(value) => metadata_field_names.push(value),
+                                OneOrManyStrings::Many(values) => {
+                                    metadata_field_names.extend(values)
+                                }
+                            }
+                        }
+                        _ => {
+                            let _: serde::de::IgnoredAny = map.next_value()?;
+                        }
+                    }
+                }
+
+                Ok(AddItemKindPostParams {
+                    name: name.ok_or_else(|| serde::de::Error::missing_field("name"))?,
+                    test_standard: test_standard
+                        .ok_or_else(|| serde::de::Error::missing_field("test_standard"))?,
+                    default_checklist_id: default_checklist_id
+                        .ok_or_else(|| serde::de::Error::missing_field("default_checklist_id"))?,
+                    default_interval_id: default_interval_id
+                        .ok_or_else(|| serde::de::Error::missing_field("default_interval_id"))?,
+                    default_expiry_id: default_expiry_id
+                        .ok_or_else(|| serde::de::Error::missing_field("default_expiry_id"))?,
+                    metadata_field_names: if metadata_field_names.is_empty() {
+                        None
+                    } else {
+                        Some(metadata_field_names)
+                    },
+                })
+            }
+        }
+
+        deserializer.deserialize_map(AddItemKindPostParamsVisitor)
+    }
 }
 
 #[debug_handler]
@@ -1295,6 +1635,7 @@ pub fn routes() -> Routes {
         .add("/add", get(add_item))
         .add("/add", post(add_item_post))
         .add("/item/{id}", get(show_item_details))
+        .add("/item/{id}/report.pdf", get(download_item_report))
         .add("/item/{id}/edit", get(edit_item))
         .add("/item/{id}/check", get(show_item_check))
         .add("/item/{id}/check", post(submit_item_check))
@@ -1312,12 +1653,49 @@ pub fn routes() -> Routes {
 
 #[cfg(test)]
 mod tests {
-    use super::AddItemKindPostParams;
+    use super::{
+        build_inventory_metadata_columns, build_inventory_metadata_values_by_column_key,
+        AddItemKindPostParams,
+    };
+    use crate::models::{inventory_item_kind_metadata_fields, inventory_items};
+    use chrono::Utc;
+    use std::collections::HashMap;
+
+    fn test_inventory_item(id: i32, inventory_item_kind_id: i32) -> inventory_items::Model {
+        inventory_items::Model {
+            created_at: Utc::now().into(),
+            updated_at: Utc::now().into(),
+            id,
+            name: format!("Item {id}"),
+            serial_number: None,
+            last_checked_at: None,
+            expiry: None,
+            inventory_item_kind_id,
+            checklist_id: 1,
+            interval_id: 1,
+        }
+    }
+
+    fn test_metadata_field(
+        id: i32,
+        inventory_item_kind_id: i32,
+        position: i32,
+        name: &str,
+    ) -> inventory_item_kind_metadata_fields::Model {
+        inventory_item_kind_metadata_fields::Model {
+            created_at: Utc::now().into(),
+            updated_at: Utc::now().into(),
+            id,
+            name: name.to_string(),
+            position,
+            inventory_item_kind_id,
+        }
+    }
 
     #[test]
     fn deserializes_single_metadata_field_name() {
         let params = serde_urlencoded::from_str::<AddItemKindPostParams>(
-            "name=Device&default_checklist_id=1&default_interval_id=1&default_expiry_id=1&metadata_field_names=manufacturer",
+            "name=Device&test_standard=EN358&default_checklist_id=1&default_interval_id=1&default_expiry_id=1&metadata_field_names=manufacturer",
         )
         .unwrap();
 
@@ -1330,13 +1708,76 @@ mod tests {
     #[test]
     fn deserializes_repeated_metadata_field_names() {
         let params = serde_urlencoded::from_str::<AddItemKindPostParams>(
-            "name=Device&default_checklist_id=1&default_interval_id=1&default_expiry_id=1&metadata_field_names=manufacturer&metadata_field_names=serialnr",
+            "name=Device&test_standard=EN358&default_checklist_id=1&default_interval_id=1&default_expiry_id=1&metadata_field_names=manufacturer&metadata_field_names=serialnr",
         )
         .unwrap();
 
         assert_eq!(
             params.metadata_field_names,
             Some(vec!["manufacturer".to_string(), "serialnr".to_string()])
+        );
+    }
+
+    #[test]
+    fn deduplicates_inventory_metadata_columns_across_item_kinds() {
+        let items = vec![test_inventory_item(1, 10), test_inventory_item(2, 20)];
+        let metadata_fields_by_kind_id = HashMap::from([
+            (
+                10,
+                vec![
+                    test_metadata_field(1, 10, 0, "Manufacturer"),
+                    test_metadata_field(2, 10, 1, "Serialnr"),
+                ],
+            ),
+            (
+                20,
+                vec![
+                    test_metadata_field(3, 20, 0, "manufacturer"),
+                    test_metadata_field(4, 20, 1, "Asset Tag"),
+                ],
+            ),
+        ]);
+
+        let columns = build_inventory_metadata_columns(&items, &metadata_fields_by_kind_id);
+
+        assert_eq!(
+            columns
+                .into_iter()
+                .map(|column| column.name)
+                .collect::<Vec<_>>(),
+            vec![
+                "Manufacturer".to_string(),
+                "Serialnr".to_string(),
+                "Asset Tag".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn combines_duplicate_metadata_field_values_into_one_cell() {
+        let metadata_fields = vec![
+            test_metadata_field(1, 10, 0, "Manufacturer"),
+            test_metadata_field(2, 10, 1, "manufacturer"),
+            test_metadata_field(3, 10, 2, "Serialnr"),
+        ];
+        let metadata_values_by_field_id = HashMap::from([
+            (1, "Acme".to_string()),
+            (2, "Beta".to_string()),
+            (3, "SN-1".to_string()),
+        ]);
+
+        let values_by_column_key = build_inventory_metadata_values_by_column_key(
+            &metadata_fields,
+            &metadata_values_by_field_id,
+        );
+
+        assert_eq!(
+            values_by_column_key.get("manufacturer"),
+            Some(&"Acme, Beta".to_string())
+        );
+        assert_eq!(
+            values_by_column_key.get("serialnr"),
+            Some(&"SN-1".to_string())
         );
     }
 }

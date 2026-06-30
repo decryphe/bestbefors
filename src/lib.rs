@@ -5,6 +5,7 @@ pub mod exts;
 pub mod initializers;
 pub mod mailers;
 pub mod models;
+pub mod reports;
 pub mod tasks;
 pub mod views;
 pub mod workers;

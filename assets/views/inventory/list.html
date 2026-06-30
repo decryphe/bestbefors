@@ -28,6 +28,9 @@
                                         <th>{{ t(key="gui-inventory-list-name", lang=lang_code) }}</th>
                                         <th>{{ t(key="gui-inventory-list-kind", lang=lang_code) }}</th>
                                         <th>{{ t(key="gui-inventory-list-serial", lang=lang_code) }}</th>
+                                        {% for column in metadata_columns %}
+                                        <th>{{ column.name }}</th>
+                                        {% endfor %}
                                         <th>{{ t(key="gui-inventory-list-last_checked", lang=lang_code) }}</th>
                                         <th>{{ t(key="gui-inventory-list-expiry", lang=lang_code) }}</th>
                                         <th class="text-end">{{ t(key="gui-common-actions", lang=lang_code) }}</th>
@@ -44,6 +47,9 @@
                                         <td>
                                             {{ item.serial | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
                                         </td>
+                                        {% for metadata_value in item.metadata_cells %}
+                                        <td>{{ metadata_value }}</td>
+                                        {% endfor %}
                                         <td data-utc="{{ item.last_checked_at | default(value=t(key='gui-common-not_available', lang=lang_code))}}">
                                             {{ item.last_checked_at | default(value=t(key="gui-common-not_available", lang=lang_code)) }}
                                         </td>
